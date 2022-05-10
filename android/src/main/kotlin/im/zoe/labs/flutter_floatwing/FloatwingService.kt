@@ -26,8 +26,9 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
     private lateinit var windowManager: WindowManager
 
     private lateinit var engGroup: FlutterEngineGroup
-    private lateinit var methodChannel: MethodChannel
-    private lateinit var messageChannel: BasicMessageChannel<Any?>
+
+    lateinit var _channel: MethodChannel
+    lateinit var _message: BasicMessageChannel<Any?>
 
     // store the window object use the id as key
     val windows = HashMap<String, FloatWindow>()
@@ -35,12 +36,13 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
     override fun onCreate() {
         super.onCreate()
 
+        // set the instance
+        instance = this
+
         mContext = applicationContext
 
         engGroup = FlutterEngineGroup(mContext)
 
-        // set the instance
-        instance = this
 
         Log.i(TAG, "the background service onCreate")
 
@@ -93,31 +95,42 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             "service.stop_service" -> {
                 Log.d(TAG, "stop the service")
                 val closed = stopService(Intent(baseContext, this.javaClass))
-                result.success(closed)
+                return result.success(closed)
             }
-            "service.close_window" -> {
-                val id = call.argument<String>("id")!!
-                val hard = call.argument<Boolean?>("hard")
-                return result.success(closeWindow(id, hard))
-            }
-            "service.start_window" -> {
+            "service.create_window" -> {
                 val id = call.argument<String>("id") ?: "default"
                 val cfg = call.argument<Map<String, *>>("config")!!
+                val start = call.argument<Boolean>("start") ?: false
                 val config = FloatWindow.Config.from(cfg)
-                return result.success(startWindow(mContext, id, config))
+                return result.success(createWindow(mContext, id, config, start))
             }
-            "service.show_window" -> {
+
+            // call for windows
+            "window.close" -> {
                 val id = call.argument<String>("id")!!
-                val visible = call.argument<Boolean>("visible") ?: true
-                return result.success(showWindow(id, visible))
+                Log.d(TAG, "[service] window.close request_id: $id")
+                val force = call.argument("force") ?: false
+                return result.success(windows[id]?.destroy(force))
             }
-            "service.update_window" -> {
+            "window.start" -> {
+                val id = call.argument<String>("id") ?: "default"
+                Log.d(TAG, "[service] window.start request_id: $id ${windows[id]}")
+                return result.success(windows[id]?.start())
+            }
+            "window.show" -> {
                 val id = call.argument<String>("id")!!
+                val visible = call.argument("visible") ?: true
+                Log.d(TAG, "[service] window.show request_id: $id")
+                return result.success(windows[id]?.setVisible(visible))
+            }
+            "window.update" -> {
+                val id = call.argument<String>("id")!!
+                Log.d(TAG, "[service] window.update request_id: $id")
                 val config = FloatWindow.Config.from(call.argument<Map<String, *>>("config")!!)
-                return result.success(updateWindow(id, config))
+                return result.success(windows[id]?.update(config))
             }
-            "window.init" -> {
-                return result.success(null);
+            "window.sync" -> {
+                return result.success(null)
             }
             else -> {
                 Log.d(TAG, "unknown method ${call.method}")
@@ -130,16 +143,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         // update the windows from message
     }
 
-    private fun closeWindow(id: String, hard: Boolean?): Boolean {
-        windows[id]?.destroy(hard = hard?:false) ?: return true.also {
-            Log.d(TAG, "window with id $id already destroy")
-        }
-        windows.remove(id)
-        Log.i(TAG, "close window with id $id $hard")
-        return true
-    }
-
-    private fun startWindow(id: String, config: FloatWindow.Config): Map<String, Any?>? {
+    private fun createWindow(id: String, config: FloatWindow.Config, start: Boolean = false): Map<String, Any?>? {
         // check if id exits
         if (windows.contains(id)) {
             Log.e(TAG, "window with id $id exits")
@@ -148,7 +152,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
 
         // get flutter engine
         val fKey = id.flutterKey()
-        val eng = getFlutterEngine(fKey, config.entry, config.route)
+        val (eng, fromCache) = getFlutterEngine(fKey, config.entry, config.route)
 
         // use the callback to set window id for this engine
         // and then engine will take window object by call with this id
@@ -167,54 +171,29 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
 
         val svc = this
 
-        Log.d(TAG, "start window: $id $config")
-
         return FloatWindow(mContext, windowManager, fKey, eng, config).apply {
-            // set the channel for window engine
-            methodChannel = MethodChannel(eng.dartExecutor.binaryMessenger, METHOD_CHANNEL).also {
-                it.setMethodCallHandler(svc)
-            }
-            messageChannel = BasicMessageChannel(eng.dartExecutor.binaryMessenger, MESSAGE_CHANNEL, JSONMessageCodec.INSTANCE).also {
-                it.setMessageHandler(svc)
-            }
-            customMethodChannel = MethodChannel(eng.dartExecutor.binaryMessenger,
-                "$METHOD_CHANNEL/window").also {
-                it.setMethodCallHandler(this)
-            }
-
             key = id
-        }.also {
+            // save the service
+            service = svc
+            Log.d(TAG, "set window as handler $METHOD_CHANNEL/window for $eng")
+        }.init().also {
+            Log.d(TAG, "created window: $id $config")
+            if (!fromCache) it.emit("created")
             windows[it.key] = it
-            it.start()
+            if (start) it.start()
         }.toMap()
     }
 
-    private fun showWindow(id: String, visible: Boolean): Boolean {
-        return windows[id]?.let {
-            it.setVisible(visible)
-            return  true
-        } ?: false
-    }
-
-    private fun updateWindow(id: String, config: FloatWindow.Config): Map<String, Any?>? {
-        windows[id]?.let {
-            Log.i(TAG, "update window $id config: $config")
-            it.update(config)
-            Log.d(TAG, "update window result: $it")
-        }
-        return  windows[id]?.toMap()
-    }
-
     // this function is useful when we want to start service automatically
-    private  fun getFlutterEngine(key: String, entry: String?, route: String?): FlutterEngine {
+    private  fun getFlutterEngine(key: String, entry: String?, route: String?): Pair<FlutterEngine, Boolean> {
         // first take from cache
         var eng = FlutterEngineCache.getInstance().get(key)
         if (eng != null) {
             Log.i(TAG, "use the flutter exits in cache, id: $key")
-            return eng
+            return Pair(eng, true)
         }
 
-        Log.d(TAG, "miss from cache need to ceate a new flutter engine")
+        Log.d(TAG, "miss from cache need to create a new flutter engine")
 
         // then create a flutter engine
 
@@ -246,24 +225,17 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         // store the engine to cache
         FlutterEngineCache.getInstance().put(key, eng)
 
-        return eng
+        return Pair(eng, false)
     }
 
+    // window engine won't call this, so just window method
     private fun installChannel(eng: FlutterEngine): Boolean {
-        Log.d(TAG, "set service as bg_method and bg_message handler for $eng")
-
+        Log.d(TAG, "set service as handler $METHOD_CHANNEL/window for $eng")
         // set the method and message channel
-        methodChannel = MethodChannel(eng.dartExecutor.binaryMessenger, METHOD_CHANNEL)
-        methodChannel.setMethodCallHandler(this)
-
-        messageChannel = BasicMessageChannel(eng.dartExecutor.binaryMessenger, MESSAGE_CHANNEL, JSONMessageCodec.INSTANCE)
-        messageChannel.setMessageHandler(this)
-
-
-        // todo avoid error
-        MethodChannel(eng.dartExecutor.binaryMessenger, "$METHOD_CHANNEL/window").also {
-            it.setMethodCallHandler(this)
-        }
+        _channel = MethodChannel(eng.dartExecutor.binaryMessenger,
+            "$METHOD_CHANNEL/window").also { it.setMethodCallHandler(this) }
+        _message = BasicMessageChannel(eng.dartExecutor.binaryMessenger,
+            "$METHOD_CHANNEL/window_msg", JSONMessageCodec.INSTANCE).also { it.setMessageHandler(this) }
         return true
     }
 
@@ -280,21 +252,16 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
 
         const val WAKELOCK_TAG = "FloatwingService::WAKE_LOCK"
         const val FLUTTER_ENGINE_KEY = "floatwing_flutter_engine_"
-        const val METHOD_CHANNEL = "im.zoe.labs/flutter_floatwing/bg_method"
-        const val MESSAGE_CHANNEL = "im.zoe.labs/flutter_floatwing/bg_message"
+        const val METHOD_CHANNEL = "im.zoe.labs/flutter_floatwing"
+        const val MESSAGE_CHANNEL = "im.zoe.labs/flutter_floatwing"
 
-        fun closeWindow(id: String, hard: Boolean?): Boolean {
-            Log.i(TAG, "close a window: $id")
-            return instance?.closeWindow(id, hard) ?: false
-        }
-
-        fun startWindow(context: Context, id: String, config: FloatWindow.Config): Map<String, Any?>? {
-            Log.i(TAG, "start a window: $config")
+        fun createWindow(context: Context, id: String, config: FloatWindow.Config, start: Boolean = false): Map<String, Any?>? {
+            Log.i(TAG, "create a window: $id $config")
             // make sure the service started
             if (!ensureService(context)) return null
 
             // start the window
-            return instance?.startWindow(id, config)
+            return instance?.createWindow(id, config, start)
         }
 
         // ensure the service is started

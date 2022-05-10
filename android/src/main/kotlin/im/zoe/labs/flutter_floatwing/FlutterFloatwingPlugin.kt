@@ -42,7 +42,7 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
     // how to known i'm a window engine not the main one?
     // if contains engine already, means we are coming from window
     // TODO: take first engine as main, but if service auto start the window
-    // this will cause errror
+    // this will cause error
     if (FlutterEngineCache.getInstance().contains(FLUTTER_ENGINE_CACHE_KEY)) {
       Log.d(TAG, "on attached to window engine")
     } else {
@@ -82,22 +82,23 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
       "plugin.grant_permission" -> {
         return grantPermission(result)
       }
-      "plugin.start_window" -> {
+      "plugin.create_window" -> {
         val id = call.argument<String>("id") ?: "default"
         val cfg = call.argument<Map<String, *>>("config")!!
+        val start = call.argument<Boolean>("start") ?: false
         val config = FloatWindow.Config.from(cfg)
-        return result.success(FloatwingService.startWindow(mContext, id, config).also {
-          if (it != null && !serviceChannelInstalled) {
-            // create success and install channel again, why?
-            // FloatwingService.installChannel(engine)
-          }
-        })
+        return result.success(FloatwingService.createWindow(mContext, id, config, start))
       }
+//      "plugin.start_window" -> {
+//        val id = call.argument<String>("id") ?: "default"
+//        return result.success(FloatwingService.startWindow(id))
+//      }
       "plugin.is_service_running" -> {
         return result.success(FloatwingService.isRunning(mContext))
       }
       "plugin.start_service" -> {
-        return result.success(FloatwingService.start(mContext))
+        return result.success(FloatwingService.isRunning(mContext)
+          .or(FloatwingService.start(mContext)))
       }
       else -> {
         Log.d(TAG, "method ${call.method} not implement")

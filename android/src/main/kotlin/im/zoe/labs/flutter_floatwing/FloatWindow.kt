@@ -18,9 +18,9 @@ import io.flutter.embedding.android.FlutterView
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.plugin.common.BasicMessageChannel
+import io.flutter.plugin.common.JSONMessageCodec
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import java.lang.Exception
 
 @SuppressLint("ClickableViewAccessibility")
 class FloatWindow(
@@ -28,7 +28,8 @@ class FloatWindow(
     wmr: WindowManager,
     engKey: String,
     eng: FlutterEngine,
-    cfg: Config): View.OnTouchListener, MethodChannel.MethodCallHandler {
+    cfg: Config): View.OnTouchListener, MethodChannel.MethodCallHandler,
+    BasicMessageChannel.MessageHandler<Any?> {
 
     companion object {
         private const val TAG = "FloatWindow"
@@ -46,66 +47,19 @@ class FloatWindow(
     var view: FlutterView = FlutterView(context, FlutterTextureView(context))
     var layoutParams: LayoutParams = config.to()
 
-    lateinit var methodChannel: MethodChannel
-    lateinit var messageChannel: BasicMessageChannel<Any?>
-    lateinit var customMethodChannel: MethodChannel
+    lateinit var service: FloatwingService
 
-    init {
+    // method and message channel for window engine call
+    var _channel: MethodChannel = MethodChannel(eng.dartExecutor.binaryMessenger,
+        "${FloatwingService.METHOD_CHANNEL}/window").also {
+        it.setMethodCallHandler(this) }
+    var _message: BasicMessageChannel<Any?> = BasicMessageChannel(eng.dartExecutor.binaryMessenger,
+        "${FloatwingService.MESSAGE_CHANNEL}/window_msg", JSONMessageCodec.INSTANCE)
+        .also { it.setMessageHandler(this) }
 
-        /*
-        view.attachToFlutterEngine(engine)
+    var _started = false
 
-        view.fitsSystemWindows = true
-        view.isFocusable = true;
-        view.isFocusableInTouchMode = true
-
-        view.setBackgroundColor(Color.TRANSPARENT)
-        view.setOnTouchListener(this)
-
-        wm.addView(view, layoutParams)
-         */
-    }
-
-    fun destroy(hard: Boolean = true) {
-        Log.i(TAG, "destroy window: $key hard: $hard")
-
-        // remote from manager must be first
-        wm.removeView(view)
-        view.detachFromFlutterEngine()
-
-        // TODO: should we stop the engine for flutter?
-        if (hard) {
-            // stop engine and remove from cache
-            FlutterEngineCache.getInstance().remove(engineKey)
-            engine.destroy()
-        } else {
-            engine.lifecycleChannel.appIsPaused()
-        }
-    }
-
-    fun setVisible(visible: Boolean = true) {
-        view.visibility = if (visible) View.VISIBLE else View.GONE
-    }
-
-    fun update(cfg: Config): Boolean {
-        config = config.update(cfg).also {
-            layoutParams = it.to()
-            wm.updateViewLayout(view, layoutParams)
-        }
-        return true
-    }
-
-    fun start(): Boolean {
-        engine.lifecycleChannel.appIsResumed()
-        // if engine is paused, send re-render message
-        // make sure reuse engine can be re-render
-        customMethodChannel.invokeMethod("window.resumed", null)
-
-        view.attachToFlutterEngine(engine)
-
-        // view.setZOrderMediaOverlay(true)
-        // view.holder.setFormat(PixelFormat.TRANSPARENT)
-
+    fun init(): FloatWindow {
         config.focusable?.let{
             view.isFocusable = it
             view.isFocusableInTouchMode = it
@@ -113,28 +67,92 @@ class FloatWindow(
 
         config.visible?.let{ setVisible(it) }
 
-        view.setBackgroundColor(Color.TRANSPARENT)
-
-        view.fitsSystemWindows = true
-
         view.setOnTouchListener(this)
 
+        view.setBackgroundColor(Color.TRANSPARENT)
+        view.fitsSystemWindows = true
+
+        // view.attachToFlutterEngine(engine)
+        return this
+    }
+
+    fun destroy(force: Boolean = true): Boolean {
+        Log.i(TAG, "destroy window: $key force: $force")
+
+        // remote from manager must be first
+        if (_started) wm.removeView(view)
+
+        view.detachFromFlutterEngine()
+
+
+        // TODO: should we stop the engine for flutter?
+        if (force) {
+            // stop engine and remove from cache
+            FlutterEngineCache.getInstance().remove(engineKey)
+            engine.destroy()
+            service.windows.remove(key)
+            emit("destroy", null)
+        } else {
+            _started = false
+            engine.lifecycleChannel.appIsPaused()
+            emit("paused", null)
+        }
+        return true
+    }
+
+    fun setVisible(visible: Boolean = true): Boolean {
+        Log.d(TAG, "set window $key => $visible");
+        emit("visible", visible)
+        view.visibility = if (visible) View.VISIBLE else View.GONE
+        return visible
+    }
+
+    fun update(cfg: Config): Map<String, Any?>? {
+        Log.d(TAG, "update window $key => $cfg");
+        config = config.update(cfg).also {
+            layoutParams = it.to()
+            if (_started) wm.updateViewLayout(view, layoutParams)
+        }
+        return toMap()
+    }
+
+    fun start(): Boolean {
+        if (_started) {
+            Log.d(TAG, "window $key already started")
+            return true
+        }
+
+        _started = true
+        Log.d(TAG, "start window: $key")
+
+        engine.lifecycleChannel.appIsResumed()
+
+        // if engine is paused, send re-render message
+        // make sure reuse engine can be re-render
+        emit("resumed")
+
+        view.attachToFlutterEngine(engine)
+
         wm.addView(view, layoutParams)
+
+        emit("started")
 
         return true
     }
 
-    fun initialize() {
-        // send message to engine
-        Log.i(TAG, "invoke window engine init: $key")
-        customMethodChannel.invokeMethod("window.initialize", toMap())
+    fun emit(name: String, data: Any? = null) {
+        Log.i(TAG, "emit event: Window[$key] $name ")
+        _channel.invokeMethod("window.$name", data)
+
+        // we need to send to man engine
+        service._channel.invokeMethod("window.$name", key)
     }
 
     fun toMap(): Map<String, Any?>? {
         // must not null if success created
         val map = HashMap<String, Any?>()
         map["id"] = key
-        map["config"] = config.toMap()
+        map["config"] = config.toMap()?.filter { it.value != null }
         return map
     }
 
@@ -142,14 +160,54 @@ class FloatWindow(
         return "${toMap()}"
     }
 
-    override fun onTouch(p0: View?, p1: MotionEvent?): Boolean {
-        return false
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        // TODO: move window call from service to here
+        return when (call.method) {
+            "window.sync" -> {
+                // when flutter is ready should call this to sync the window object.
+                Log.i(TAG, "[window] window.sync from flutter side: $key")
+                result.success(toMap())
+            }
+            "window.close" -> {
+                val id = call.argument<String?>("id")?:"<unset>"
+                Log.d(TAG, "[window] window.close request_id: $id, my_id: $key")
+                val force = call.argument("force") ?: false
+                return result.success(destroy(force))
+            }
+            "window.destroy" -> {
+                val id = call.argument<String?>("id")?:"<unset>"
+                Log.d(TAG, "[window] window.destroy request_id: $id, my_id: $key")
+                return result.success(destroy(true))
+            }
+            "window.start" -> {
+                val id = call.argument<String?>("id")?:"<unset>"
+                Log.d(TAG, "[window] window.start request_id: $id, my_id: $key")
+                return result.success(start())
+            }
+            "window.update" -> {
+                val id = call.argument<String?>("id")?:"<unset>"
+                Log.d(TAG, "[window] window.update request_id: $id, my_id: $key")
+                val config = Config.from(call.argument<Map<String, *>>("config")!!)
+                return result.success(update(config))
+            }
+            "window.show" -> {
+                val id = call.argument<String?>("id")?:"<unset>"
+                Log.d(TAG, "[window] window.show request_id: $id, my_id: $key")
+                val visible = call.argument<Boolean>("visible") ?: true
+                return result.success(setVisible(visible))
+            }
+            else -> {
+                result.notImplemented()
+            }
+        }
     }
 
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        // just for init
-        Log.i(TAG, "receive init from flutter side, let's send the window to flutter")
-        result.success(toMap())
+    override fun onMessage(msg: Any?, reply: BasicMessageChannel.Reply<Any?>) {
+
+    }
+
+    override fun onTouch(p0: View?, p1: MotionEvent?): Boolean {
+        return false
     }
 
     class Config {
@@ -259,7 +317,8 @@ class FloatWindow(
         }
 
         override fun toString(): String {
-            return "${toMap()}"
+            val map = toMap()?.filter { it.value != null }
+            return "$map"
         }
 
         companion object {

@@ -63,21 +63,22 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
   
     // init window from engine and save, only call this int here
     // sync a window from engine
-    FloatwingPlugin().syncWindow().then((w) {
+    Window().sync().then((w) {
       print("provider set window: $w");
       _window = w;
 
       _updateFromWindow();
 
-      // re-render the flutter
-      w?.addListener(() {
-        _updateFromWindow();
-      });
-
+      w?.on("resumed", (w, _) => _updateFromWindow());
     });
   }
 
   _updateFromWindow() {
+    if (_pixelRadio <= 1) {
+      _pixelRadio = MediaQuery.of(context).devicePixelRatio;
+      print("try to update _pixelRadio $_pixelRadio");
+    }
+
     // clickable == !ignorePointer
     _ignorePointer = !(_window?.config?.clickable ?? true);
     print("the view to ignore pointer: $_ignorePointer");

@@ -29,10 +29,6 @@ flutter:
       android:
         package: im.zoe.labs.flutter_floatwing
         pluginClass: FlutterFloatwingPlugin
-      ios:
-        pluginClass: FlutterFloatwingPlugin
-      macos:
-        pluginClass: FlutterFloatwingPlugin
 
   # To add assets to your plugin package, add an assets section, like this:
   # assets:
