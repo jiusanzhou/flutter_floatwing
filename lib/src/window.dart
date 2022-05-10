@@ -2,28 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
+import 'package:flutter_floatwing/src/event.dart';
 
 class Window extends ChangeNotifier {
   String id = "default";
   WindowConfig? config;
 
-  Window(this.config) {
+  EventManager? _eventManager;
+
+  EventManager? get eventManager => _eventManager;
+
+  Window({this.id = "default", this.config}) {
+    _eventManager = EventManager(this);
+
     _channel.setMethodCallHandler((call) {
-      switch (call.method) {
-        case "window.resumed": {
-          // how to notify window to reload the page
-          print("receive from service, engine resumed");
-          notifyListeners();
-        }
+      var res = _eventManager?.sink(call.method, call.arguments) ?? [];
+      if (res.length > 0) {
+        print("handled event: ${call.method}");
+        return Future.value(null);
       }
+
+      switch (call.method) {
+      }
+      print("unknown listender or method register: ${call.method}");
       return Future.value(null);
     });
   }
 
-  static final MethodChannel _channel = MethodChannel('${FloatwingPlugin.channelID}/bg_method/window');
+  static final MethodChannel _channel =
+      MethodChannel('${FloatwingPlugin.channelID}/window');
+  static final BasicMessageChannel _message = BasicMessageChannel(
+      '${FloatwingPlugin.channelID}/window_msg', JSONMessageCodec());
 
   factory Window.fromMap(Map<dynamic, dynamic>? map) {
-    return Window(null).applyMap(map);
+    return Window().applyMap(map);
   }
 
   @override
@@ -33,7 +45,7 @@ class Window extends ChangeNotifier {
 
   Window applyMap(Map<dynamic, dynamic>? map) {
     // apply the map to config and object
-    if (map==null) return this;
+    if (map == null) return this;
     id = map["id"];
     config = WindowConfig.fromMap(map["config"]);
     return this;
@@ -43,49 +55,87 @@ class Window extends ChangeNotifier {
   /// The data from the closest instance of this class that encloses the given
   /// context.
   static Window? of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<FloatwingProvider>()?.window;
+    return context
+        .dependOnInheritedWidgetOfExactType<FloatwingProvider>()
+        ?.window;
   }
 
-  Future<bool> show({bool v = true}) {
-    return FloatwingPlugin().showWindow(id, v);
+  Future<bool?> hide() {
+    return show(visible: false);
+    // return FloatwingPlugin().showWindow(id, false);
   }
 
-  Future<bool> hide() {
-    return FloatwingPlugin().showWindow(id, false);
+  Future<bool?> close({bool force = false}) async {
+    // return await FloatwingPlugin().closeWindow(id, force: force);
+    return await _channel.invokeMethod("window.close", {
+      "id": id,
+      "force": force,
+    });
   }
 
-  Future<bool> close({ bool hard = false }) async {
-    return await FloatwingPlugin().closeWindow(id, hard: hard);
+  Future<Window?> create({bool start = false}) async {
+    // // create the engine first
+    return await FloatwingPlugin().createWindow(this.id, this.config!, window: this);
+  }
+
+  Future<bool?> start() async {
+    assert(config != null, "config can't be null");
+    print("invoke window.start for $this");
+    return await _channel.invokeMethod("window.start", {
+      "id": id,
+    });
+    // return await FloatwingPlugin().startWindow(id);
   }
 
   Future<bool> update(WindowConfig cfg) async {
     // update window with config, config con't update with id, entry, route
     var size = config?.size;
-    if (size!=null&&size<Size.zero) {
+    if (size != null && size < Size.zero) {
       // special case, should updated
       cfg.width = null;
       cfg.height = null;
     }
-
-    var updates = await FloatwingPlugin().updateWindow(id, cfg);
-    print("update window result: $updates");
+    var updates = await _channel.invokeMapMethod("window.update", {
+      "id": id,
+      "config": cfg.toMap(),
+    });
+    // var updates = await FloatwingPlugin().updateWindow(id, cfg);
     applyMap(updates);
     return true;
   }
 
+  Future<bool?> show({bool visible = true}) async {
+    // return FloatwingPlugin().showWindow(id, v);
+    config?.visible = visible;
+    return await _channel.invokeMethod("window.show", {
+      "id": id,
+      "visible": visible,
+    });
+  }
+
   // sync window object from android service
+  // only window engine call this
   Future<Window?> sync() async {
-    var map = await _channel.invokeMapMethod("window.init");
-    print("receive init call from android: $map");
+    // assert if you are in main engine should call this
+    var map = await _channel.invokeMapMethod("window.sync");
+    print("sync window object from android: $map");
     if (map == null) return null;
     applyMap(map);
     FloatwingPlugin().saveWindow(this);
     return this;
   }
+
+  /// on register callback to listener
+  Window on(String name, WindowListener callback) {
+    print("register event listener: $id $name");
+    _eventManager?.on(name, callback);
+    return this;
+  }
 }
 
 class WindowConfig {
-  // String? id;
+  String? id;
+
   String? entry;
   String? route;
   double? callback; // use callback to start engine
@@ -110,26 +160,21 @@ class WindowConfig {
 
   /// we need this for update, so must wihtout default value
   WindowConfig({
-    // this.id = "default",
+    this.id = "default",
     this.entry = "main",
     this.route,
     this.callback,
-
     this.width,
     this.height,
     this.x,
     this.y,
-    
     this.format,
     this.gravity,
     this.type,
-
     this.clickable,
     this.draggable,
     this.focusable,
-
     this.immersion,
-
     this.visible,
   });
 
@@ -186,16 +231,26 @@ class WindowConfig {
     return map;
   }
 
-  Future<Window> start({String? id = "default"}) async {
-    assert(!(entry == "main" && route == null));
-    return await FloatwingPlugin().createWindow(id, this);
+  // return a window frm config
+  Window to() {
+    return Window(id: this.id ?? "default", config: this);
   }
 
-  Size get size => Size((width??0).toDouble(), (height??0).toDouble());
+  Future<Window> create({
+    String? id = "default",
+    bool start = false,
+  }) async {
+    assert(!(entry == "main" && route == null));
+    return await FloatwingPlugin().createWindow(id, this, start: start);
+  }
+
+  Size get size => Size((width ?? 0).toDouble(), (height ?? 0).toDouble());
 
   @override
   String toString() {
-    return json.encode(this.toMap()).toString();
+    var map = this.toMap();
+    map.removeWhere((key, value) => value == null);
+    return json.encode(map).toString();
   }
 }
 

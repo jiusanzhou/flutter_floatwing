@@ -5,13 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_floatwing/src/window.dart';
 
 class FloatwingPlugin {
-
   FloatwingPlugin._() {
     _bgChannel.setMethodCallHandler((call) {
+      var id = call.arguments as String;
+      // if we are window egine, should call main engine
+      FloatwingPlugin().windows[id]?.eventManager?.sink(call.method, call.arguments);
       switch (call.method) {
-        case "window.resumed": {
 
-        }
       }
       return Future.value(null);
     });
@@ -21,7 +21,8 @@ class FloatwingPlugin {
 
   static final MethodChannel _channel = MethodChannel('$channelID/method');
   static final MethodChannel _bgChannel = MethodChannel('$channelID/bg_method');
-  static final BasicMessageChannel _msgChannel = BasicMessageChannel('$channelID/bg_message', JSONMessageCodec());
+  static final BasicMessageChannel _msgChannel =
+      BasicMessageChannel('$channelID/bg_message', JSONMessageCodec());
 
   static final FloatwingPlugin _instance = FloatwingPlugin._();
 
@@ -29,11 +30,11 @@ class FloatwingPlugin {
   bool _inited = false;
 
   /// permission granted already
-  /// 
+  ///
   bool? _permissionGranted;
 
   /// service running already
-  /// 
+  ///
   bool? _serviceRunning;
 
   /// _windows for the main engine to manage the windows started
@@ -41,7 +42,8 @@ class FloatwingPlugin {
   Map<String, Window> _windows = {};
 
   /// reutrn all windows only works for main engine
-  List<Window> get windows => _windows.entries.map<Window>((e) => e.value).toList();
+  Map<String, Window> get windows =>
+      _windows; // _windows.entries.map<Window>((e) => e.value).toList();
 
   /// _window for the sub window engine to manage it's self
   /// setted after window's engine start and initital call
@@ -106,40 +108,59 @@ class FloatwingPlugin {
     return await _channel.invokeMethod("plugin.start_service");
   }
 
-  Future<Window> createWindow(String? id, WindowConfig config) async {
+  // create window object
+  Future<Window> createWindow(
+    String? id,
+    WindowConfig config, {
+    bool start = false, // start immediately if true
+    Window? window,
+  }) async {
     // check permission first
     if (!await checkPermission()) {
       throw Exception("no permission to create window");
     }
-    var updates = await _channel.invokeMapMethod<String, dynamic>("plugin.start_window", {
-      "id": id, "config": config.toMap()
+    var updates =
+        await _channel.invokeMapMethod<String, dynamic>("plugin.create_window", {
+      "id": id,
+      "config": config.toMap(),
+      "start": start,
     });
-    var w = Window(config).applyMap(updates);
+    var w = (window ?? Window()).applyMap(updates);
     // store the window to cache
     _windows[w.id] = w;
     return w;
   }
 
-  Future<bool> closeWindow(String id, {bool hard = false}) async {
-    return await _bgChannel.invokeMethod("service.close_window", {
-      "id": id, "hard": hard,
-    });
-  }
+  // Future<bool> startWindow(String id) async {
+  //   return await _bgChannel.invokeMethod("service.start_window", {
+  //     "id": id
+  //   });
+  // }
 
-  Future<Map<dynamic, dynamic>?> updateWindow(String id, WindowConfig config) async {
-    var updates = await _bgChannel.invokeMapMethod("service.update_window", {
-      "id": id,
-      "config": config.toMap(),
-    });
-    print("plugin update window result<map>: $updates");
-    // store the window to cache
-    _windows[id]?.applyMap(updates);
-    return updates;
-  }
+  // Future<bool> closeWindow(String id, {bool force = false}) async {
+  //   return await _bgChannel.invokeMethod("service.close_window", {
+  //     "id": id,
+  //     "force": force,
+  //   });
+  // }
 
-  Future<bool> showWindow(String id, bool v) async {
-    return await _bgChannel.invokeMethod("service.show_window", [id, v]);
-  }
+  // Future<Map<dynamic, dynamic>?> updateWindow(
+  //     String id, WindowConfig config) async {
+  //   var updates = await _bgChannel.invokeMapMethod("service.update_window", {
+  //     "id": id,
+  //     "config": config.toMap(),
+  //   });
+  //   // store the window to cache
+  //   _windows[id]?.applyMap(updates);
+  //   return updates;
+  // }
+
+  // Future<bool> showWindow(String id, bool v) async {
+  //   return await _bgChannel.invokeMethod("service.show_window", {
+  //     "id": id,
+  //     "visible": v
+  //   });
+  // }
 
   // Window? getWindow(String id) {
   //   return _windows[id];
@@ -147,21 +168,19 @@ class FloatwingPlugin {
 
   /// sync window return a window from engine
   /// when in the flutter don't known window object.
-  Future<Window?> syncWindow() async {
-    if (_window!=null) return _window;
-    // create window and sync from service
-    return Window(null).sync();
+  // Future<Window?> syncWindow() async {
+  //   if (_window != null) return _window;
+  //   // create window and sync from service
+  //   return Window(null).sync();
 
-    // var map = await MethodChannel('$channelID/bg_method/window')
-    //   .invokeMapMethod("window.init");
-    // print("receive init call from android: $map");
-    // var w = Window.fromMap(map);
-    // // set to static
-    // FloatwingPlugin()._window = w;
-    // return w;
-  }
+  //   // var map = await MethodChannel('$channelID/bg_method/window')
+  //   //   .invokeMapMethod("window.init");
+  //   // print("receive init call from android: $map");
+  //   // var w = Window.fromMap(map);
+  //   // // set to static
+  //   // FloatwingPlugin()._window = w;
+  //   // return w;
+  // }
 
-  static void _callback() async {
-
-  }
+  static void _callback() async {}
 }
