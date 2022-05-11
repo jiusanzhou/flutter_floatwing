@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_floatwing/src/window.dart';
 
 class FloatwingPlugin {
   FloatwingPlugin._() {
+    WidgetsFlutterBinding.ensureInitialized();
+
     _bgChannel.setMethodCallHandler((call) {
       var id = call.arguments as String;
       // if we are window egine, should call main engine
@@ -75,19 +78,21 @@ class FloatwingPlugin {
     var map = await _channel.invokeMapMethod("plugin.initialize", {
       // "start_service": true,
       "callback": _cbId.toRawHandle(),
+      "pixelRadio": window.devicePixelRatio,
     });
 
-    print("initialize result: $map");
+    print("[plugin] initialize result: $map");
 
     _serviceRunning = map?["service_running"];
     _permissionGranted = map?["permission_grated"];
 
-    (map?["windows"] as List<dynamic>?)?.map((e) {
+    var _ws = map?["windows"] as List<dynamic>?;
+    _ws?.forEach((e) {
       var w = Window.fromMap(e);
       _windows[w.id] = w;
     });
 
-    print("there are ${_windows.length} windows already started");
+    print("[plugin] there are ${_windows.length} windows already started");
 
     return true;
   }
@@ -129,6 +134,15 @@ class FloatwingPlugin {
     // store the window to cache
     _windows[w.id] = w;
     return w;
+  }
+
+  /// ensure window make sure the window object sync from android
+  /// call this as soon at posible when engine start
+  /// you should only call this in the window engine
+  /// if only main as entry point, it's ok to call this
+  /// and return nothing
+  Future<Window?> ensureWindow() async {
+    return Window().sync();
   }
 
   // Future<bool> startWindow(String id) async {

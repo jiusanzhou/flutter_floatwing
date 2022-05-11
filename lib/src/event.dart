@@ -22,7 +22,7 @@ class EventManager {
 
   EventManager on(String name, WindowListener callback) {
     final key = "$_prefix$name";
-    print("[${Isolate.current.debugName}] register listener for $key");
+    print("[event] register listener for $key");
     if (_listeners[key] == null) _listeners[key] = [];
     _listeners[key]?.add(callback);
     return this;

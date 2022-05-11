@@ -1,18 +1,22 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'dart:async';
 
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 import 'package:flutter_floatwing_example/views/night.dart';
 import 'package:flutter_floatwing_example/views/normal.dart';
 
 void main() {
+  print("i'm flutter entry point: main");
+  // only need this when you use main as window engine's entry point
+  FloatwingPlugin().ensureWindow();
+
   runApp(MyApp());
 }
 
 @pragma("vm:floatwing")
 void floatwing() {
+  // only need this when you use main as window engine's entry point
+  FloatwingPlugin().ensureWindow();
+
   runApp(MaterialApp(
     home: FloatwingContainer(
       builder: ((_) => NonrmalView()).floatwing(),
@@ -45,7 +49,7 @@ class _MyAppState extends State<MyApp> {
       // TODO: bug start other engine will also execute home page
       routes: {
         "/": (_) => HomePage(),
-        "/normal": ((_) => NonrmalView().floatwing()),
+        "/normal": ((_) => NonrmalView()).floatwing(),
         "/night": ((_) => NightView()).floatwing()
       },
     );
@@ -71,13 +75,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   initSyncState() async {
+    await FloatwingPlugin().initialize();
+    
     await FloatwingPlugin().isServiceRunning().then((v) async {
       if (!v)
         await FloatwingPlugin().startService().then((_) {
           print("start the backgroud service success.");
         });
     });
-    await FloatwingPlugin().initialize();
     
     _nornmal = await WindowConfig(
       id: "normal",
