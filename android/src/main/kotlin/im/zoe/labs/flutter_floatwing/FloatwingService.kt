@@ -247,7 +247,8 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             Log.d(TAG, "[service] set window as handler $METHOD_CHANNEL/window for $eng")
         }.init().also {
             Log.d(TAG, "[service] created window: $id $config")
-            if (!fromCache) it.emit("created")
+            if (!fromCache) it.emit("init_new")
+            it.emit("created")
             windows[it.key] = it
             if (start) it.start()
         }.toMap()

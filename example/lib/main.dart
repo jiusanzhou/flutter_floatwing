@@ -67,6 +67,9 @@ class _HomePageState extends State<HomePage> {
   Window? _nornmal;
   Window? _night;
 
+  bool _normalReady = false;
+  bool _nightReady = false;
+
   @override
   void initState() {
     super.initState();
@@ -76,7 +79,7 @@ class _HomePageState extends State<HomePage> {
 
   initSyncState() async {
     await FloatwingPlugin().initialize();
-    
+
     await FloatwingPlugin().isServiceRunning().then((v) async {
       if (!v)
         await FloatwingPlugin().startService().then((_) {
@@ -89,9 +92,12 @@ class _HomePageState extends State<HomePage> {
 
       // entry: "floatwing",
       route: "/normal",
+      draggable: true,
       // gravity: 3 | 48,
     ).to().on("created", (w, _) {
       print("[on-normal-created] $w");
+      _normalReady = true;
+      setState(() {});
       // w.start();
     }).create(start: true);
 
@@ -104,6 +110,7 @@ class _HomePageState extends State<HomePage> {
       clickable: false,
     ).to().on("created", (w, _) {
       print("[on-night-created] $w");
+      _nightReady = true;
       // w.start();
     }).create();
   }
@@ -155,14 +162,14 @@ class _HomePageState extends State<HomePage> {
               spacing: 10,
               children: [
                 ElevatedButton(
-                    onPressed: () async {
+                    onPressed: !_normalReady ? null : () async {
                       print("===> $_nornmal");
                       // destroy
                       _nornmal?.start();
                     },
                     child: Text("Open Normal")),
                 ElevatedButton(
-                    onPressed: () async {
+                    onPressed: !_nightReady ? null : () async {
                       _night?.start();
                     },
                     child: Text("Open Night")),

@@ -73,11 +73,10 @@ class FloatwingPlugin {
     _inited = true;
 
     // get the callback id
-    final CallbackHandle _cbId = PluginUtilities.getCallbackHandle(_callback)!;
+    // final CallbackHandle _cbId = PluginUtilities.getCallbackHandle(_callback)!;
     // if service started will return all windows
     var map = await _channel.invokeMapMethod("plugin.initialize", {
       // "start_service": true,
-      "callback": _cbId.toRawHandle(),
       "pixelRadio": window.devicePixelRatio,
     });
 

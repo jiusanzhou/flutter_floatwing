@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.drawable.Drawable
 import android.os.Build
 import android.util.Log
 import android.view.Gravity
@@ -68,12 +67,12 @@ class FloatWindow(
             view.isFocusableInTouchMode = it
         }
 
+        view.setBackgroundColor(Color.TRANSPARENT)
+        view.fitsSystemWindows = true
+
         config.visible?.let{ setVisible(it) }
 
         view.setOnTouchListener(this)
-
-        view.setBackgroundColor(Color.TRANSPARENT)
-        view.fitsSystemWindows = true
 
         // view.attachToFlutterEngine(engine)
         return this
@@ -104,14 +103,14 @@ class FloatWindow(
     }
 
     fun setVisible(visible: Boolean = true): Boolean {
-        Log.d(TAG, "[window] set window $key => $visible");
+        Log.d(TAG, "[window] set window $key => $visible")
         emit("visible", visible)
         view.visibility = if (visible) View.VISIBLE else View.GONE
         return visible
     }
 
-    fun update(cfg: Config): Map<String, Any?>? {
-        Log.d(TAG, "[window] update window $key => $cfg");
+    fun update(cfg: Config): Map<String, Any?> {
+        Log.d(TAG, "[window] update window $key => $cfg")
         config = config.update(cfg).also {
             layoutParams = it.to()
             if (_started) wm.updateViewLayout(view, layoutParams)
@@ -151,7 +150,7 @@ class FloatWindow(
         service._channel.invokeMethod("window.$name", key)
     }
 
-    fun toMap(): Map<String, Any?>? {
+    fun toMap(): Map<String, Any?> {
         // must not null if success created
         val map = HashMap<String, Any?>()
         map["id"] = key
@@ -210,7 +209,65 @@ class FloatWindow(
 
     }
 
-    override fun onTouch(p0: View?, p1: MotionEvent?): Boolean {
+    // window is dragging
+    private var dragging = false
+
+    // start point
+    private var lastX = 0f
+    private var lastY = 0f
+
+    // border around
+    // TODO: support generate around edge
+
+    override fun onTouch(view: View?, event: MotionEvent?): Boolean {
+        // default draggable should be false
+        if (config.draggable != true) return false
+        when (event?.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // touch start
+                dragging = false
+                lastX = event.rawX
+                lastY = event.rawY
+                // TODO: support generate around edge
+            }
+            MotionEvent.ACTION_MOVE -> {
+                // touch move
+                val dx = event.rawX - lastX
+                val dy = event.rawY - lastY
+                // ignore too small fist start moving(some time is click)
+                if (!dragging && dx*dx+dy*dy < 25) {
+                    return false
+                }
+                if (!dragging) {
+                    // first time dragging
+                    emit("drag_start", listOf(event.rawX, event.rawY))
+                }
+
+                dragging = true
+
+                // update the last point
+                lastX = event.rawX
+                lastY = event.rawY
+
+                val xx = layoutParams.x + dx.toInt()
+                val yy = layoutParams.y + dy.toInt()
+                // update x, y, need to update config so use config to update
+                update(Config().apply {
+                    // calculate with the border
+                    x = xx
+                    y = yy
+                })
+
+                emit("dragging", listOf(layoutParams.x, layoutParams.y))
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // touch end
+                if (dragging) emit("drag_end", listOf(event.rawX, event.rawY))
+            }
+            else -> {
+                return false
+            }
+        }
         return false
     }
 
@@ -263,9 +320,12 @@ class FloatWindow(
                 flags = FLAG_LAYOUT_IN_SCREEN or FLAG_NOT_TOUCH_MODAL
                 // if immersion add flag no limit
                 cfg.immersion?.let{ if (it) flags = flags or FLAG_LAYOUT_NO_LIMITS }
+                // default we should be clickable
                 // if not clickable, add flag not touchable
                 cfg.clickable?.let{ if (!it) flags = flags or FLAG_NOT_TOUCHABLE }
-                // if focusable, add flag
+                // default we should be no focusable
+                if (cfg.focusable == null) { cfg.focusable = false }
+                // if not focusable, add no focusable flag
                 cfg.focusable?.let { if (!it) flags = flags or FLAG_NOT_FOCUSABLE }
 
                 // default type is overlay
@@ -273,7 +333,7 @@ class FloatWindow(
             }
         }
 
-        fun toMap(): Map<String, Any?>? {
+        fun toMap(): Map<String, Any?> {
             val map = HashMap<String, Any?>()
             map["entry"] = entry
             map["route"] = route
