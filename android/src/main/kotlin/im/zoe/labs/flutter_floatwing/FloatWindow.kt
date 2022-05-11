@@ -45,7 +45,8 @@ class FloatWindow(
     var wm = wmr
 
     var view: FlutterView = FlutterView(context, FlutterTextureView(context))
-    var layoutParams: LayoutParams = config.to()
+
+    lateinit var layoutParams: LayoutParams
 
     lateinit var service: FloatwingService
 
@@ -60,6 +61,8 @@ class FloatWindow(
     var _started = false
 
     fun init(): FloatWindow {
+        layoutParams = config.to()
+
         config.focusable?.let{
             view.isFocusable = it
             view.isFocusableInTouchMode = it
@@ -77,7 +80,7 @@ class FloatWindow(
     }
 
     fun destroy(force: Boolean = true): Boolean {
-        Log.i(TAG, "destroy window: $key force: $force")
+        Log.i(TAG, "[window] destroy window: $key force: $force")
 
         // remote from manager must be first
         if (_started) wm.removeView(view)
@@ -101,14 +104,14 @@ class FloatWindow(
     }
 
     fun setVisible(visible: Boolean = true): Boolean {
-        Log.d(TAG, "set window $key => $visible");
+        Log.d(TAG, "[window] set window $key => $visible");
         emit("visible", visible)
         view.visibility = if (visible) View.VISIBLE else View.GONE
         return visible
     }
 
     fun update(cfg: Config): Map<String, Any?>? {
-        Log.d(TAG, "update window $key => $cfg");
+        Log.d(TAG, "[window] update window $key => $cfg");
         config = config.update(cfg).also {
             layoutParams = it.to()
             if (_started) wm.updateViewLayout(view, layoutParams)
@@ -118,12 +121,12 @@ class FloatWindow(
 
     fun start(): Boolean {
         if (_started) {
-            Log.d(TAG, "window $key already started")
+            Log.d(TAG, "[window] window $key already started")
             return true
         }
 
         _started = true
-        Log.d(TAG, "start window: $key")
+        Log.d(TAG, "[window] start window: $key")
 
         engine.lifecycleChannel.appIsResumed()
 
@@ -141,7 +144,7 @@ class FloatWindow(
     }
 
     fun emit(name: String, data: Any? = null) {
-        Log.i(TAG, "emit event: Window[$key] $name ")
+        Log.i(TAG, "[window] emit event: Window[$key] $name ")
         _channel.invokeMethod("window.$name", data)
 
         // we need to send to man engine
@@ -152,6 +155,7 @@ class FloatWindow(
         // must not null if success created
         val map = HashMap<String, Any?>()
         map["id"] = key
+        map["pixelRadio"] = service.pixelRadio
         map["config"] = config.toMap()?.filter { it.value != null }
         return map
     }
@@ -217,6 +221,8 @@ class FloatWindow(
         var route: String? = null
         var callback: Long? = null
 
+        var autosize: Boolean? = null
+
         var width: Int? = null
         var height: Int? = null
         var x: Int? = null
@@ -240,8 +246,8 @@ class FloatWindow(
             val cfg = this
             return LayoutParams().apply {
                 // set size
-                width = cfg.width ?: 1 // we must have 1 pixel, let flutter can generate the pixel radio
-                height = cfg.height ?: 1 // we must have 1 pixel, let flutter can generate the pixel radio
+                width = cfg.width ?: 100 // we must have 1 pixel, let flutter can generate the pixel radio
+                height = cfg.height ?: 100 // we must have 1 pixel, let flutter can generate the pixel radio
 
                 // set position fixed if with (x, y)
                 cfg.x?.let { x = it } // default not set
@@ -273,6 +279,8 @@ class FloatWindow(
             map["route"] = route
             map["callback"] = callback
 
+            map["autosize"] = autosize
+
             map["width"] = width
             map["height"] = height
             map["x"] = x
@@ -295,6 +303,8 @@ class FloatWindow(
 
         fun update(cfg: Config): Config {
             // entry, route, callback shouldn't be updated
+
+            cfg.autosize?.let { autosize = it }
 
             cfg.width?.let { width = it }
             cfg.height?.let { height = it }
@@ -330,6 +340,8 @@ class FloatWindow(
                 cfg.entry = data["entry"] as String?
                 cfg.route = data["route"] as String?
                 cfg.callback = data["callback"] as Long?
+
+                cfg.autosize = data["autosize"] as Boolean?
 
                 cfg.width = data["width"] as Int?
                 cfg.height = data["height"] as Int?

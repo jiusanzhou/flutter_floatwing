@@ -44,44 +44,39 @@ class FloatwingContainer extends StatefulWidget {
 class _FloatwingContainerState extends State<FloatwingContainer> {
 
   var _key = GlobalKey();
-  var _pixelRadio = window.devicePixelRatio;
 
-  Window? _window;
+  Window? _window = FloatwingPlugin().currentWindow;
 
   var _ignorePointer = false;
+  var _autosize = true;
 
   @override
   void initState() {
     super.initState();
     initSyncState();
 
-    print("_pixelRadio: $_pixelRadio");
     // SchedulerBinding.instance?.addPostFrameCallback((_) {});
   }
 
   initSyncState() async {
-  
+    if (_window == null) {
+      print("[provider] don't sync window at init, need to do at here");
+      await Window().sync().then((w) => _window = w);
+    }
     // init window from engine and save, only call this int here
     // sync a window from engine
-    Window().sync().then((w) {
-      print("provider set window: $w");
-      _window = w;
-
-      _updateFromWindow();
-
-      w?.on("resumed", (w, _) => _updateFromWindow());
-    });
+    print("[provider] sync finish, so trigger to rebuild");
+    print("[provider] window: $_window");
+    _updateFromWindow();
+    _window?.on("resumed", (w, _) => _updateFromWindow());
   }
 
   _updateFromWindow() {
-    if (_pixelRadio <= 1) {
-      _pixelRadio = MediaQuery.of(context).devicePixelRatio;
-      print("try to update _pixelRadio $_pixelRadio");
-    }
-
     // clickable == !ignorePointer
     _ignorePointer = !(_window?.config?.clickable ?? true);
-    print("the view to ignore pointer: $_ignorePointer");
+    _autosize = _window?.config?.autosize ?? true;
+
+    print("[provider] the view to ignore pointer: $_ignorePointer");
 
     // update the flutter ui
     setState((){});
@@ -89,7 +84,6 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
 
   @override
   Widget build(BuildContext context) {
-    print("=======> provider build");
     SchedulerBinding.instance?.addPostFrameCallback(_onPostFrame);
     return Material(
       color: Colors.transparent,
@@ -122,9 +116,11 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
   var _oldSize;
 
   void _onPostFrame(_) {
+    if (!_autosize) return;
 
     var size = _key.currentContext?.size;
-    print("on size change: $size");
+
+    print("[provider] autosize enable, on size change: $size");
 
     if (size == null || _window == null) {
       _oldSize = size;
@@ -133,13 +129,16 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
 
     _oldSize = size;
     print("old: $_oldSize, new: $size");
+    
+    // take pixelRadio from window
+    var _pixelRadio = _window?.pixelRadio ?? 1;
 
     _window?.update(WindowConfig(
       width: (size.width * _pixelRadio).toInt(),
       height: (size.height * _pixelRadio).toInt(),
     )).then((w) {
       // window object hasbee update
-      print("update window size: $w $_window");
+      print("[provider] update window size: $w $_window");
     });
   }
 }

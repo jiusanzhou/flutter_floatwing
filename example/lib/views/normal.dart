@@ -28,55 +28,29 @@ class _NonrmalViewState extends State<NonrmalView> {
     // context.floatwingWindow
     if (w == null) {
       w = Window.of(context);
-      print("take window from context: ${w?.id}");
+      print("take window from context: $w");
     }
-    return Container(
-      width: _cSize,
-      height: _cSize,
-      child: UnconstrainedBox(child: AnimatedContainer(
-        duration: Duration(milliseconds: 100),
-        width: _size,
-        height: _size,
-        child: Card(
-          child: Center(
-            child: Wrap(
-              direction: Axis.vertical,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                ElevatedButton(onPressed: () {
-                  print("window in custom view: $w");
-                  _expend = !_expend;
-                  if (_expend) {
-                    // increase
-                    setState(() {
-                      _cSize = 200;
-                        _size = 200;
-                    });
-                    // late for child
-                    Timer(Duration(milliseconds: 500), () {
-                      setState(() {
-                        _size = 200;
-                      });
-                    });
-                  } else {
-                    // decrease
-                    setState(() {
-                      _size = 100;
-                        _cSize = 100;
-                    });
-                    // late for parernt
-                    Timer(Duration(milliseconds: 500), () {
-                      setState(() {
-                        _cSize = 100;
-                      });
-                    });
-                  }
-                }, child: Icon(_expend?Icons.expand_more:Icons.expand_less)),
-              ],
-            )
-          ),
-        )
+    return AnimatedContainer(
+      duration: Duration(milliseconds: 100),
+      width: _size,
+      height: _size,
+      child: Card(
+        child: Center(
+          child: Wrap(
+            direction: Axis.vertical,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              ElevatedButton(onPressed: () {
+                print("window in custom view: $w");
+                _expend = !_expend;
+                setState(() {
+                  _size = _expend ? 200 : 100;
+                });
+              }, child: Icon(_expend?Icons.expand_more:Icons.expand_less)),
+            ],
+          )
+        ),
       )
-    ));
+    );
   }
 }

@@ -4,9 +4,11 @@ import 'dart:convert';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 import 'package:flutter_floatwing/src/event.dart';
 
-class Window extends ChangeNotifier {
+class Window {
   String id = "default";
   WindowConfig? config;
+
+  double? pixelRadio;
 
   EventManager? _eventManager;
 
@@ -18,13 +20,13 @@ class Window extends ChangeNotifier {
     _channel.setMethodCallHandler((call) {
       var res = _eventManager?.sink(call.method, call.arguments) ?? [];
       if (res.length > 0) {
-        print("handled event: ${call.method}");
+        print("[window] handled event: ${call.method}");
         return Future.value(null);
       }
 
       switch (call.method) {
       }
-      print("unknown listender or method register: ${call.method}");
+      print("[window] unknown listender or method register: ${call.method}");
       return Future.value(null);
     });
   }
@@ -47,6 +49,7 @@ class Window extends ChangeNotifier {
     // apply the map to config and object
     if (map == null) return this;
     id = map["id"];
+    pixelRadio = map["pixelRadio"] ?? 1.0;
     config = WindowConfig.fromMap(map["config"]);
     return this;
   }
@@ -80,7 +83,7 @@ class Window extends ChangeNotifier {
 
   Future<bool?> start() async {
     assert(config != null, "config can't be null");
-    print("invoke window.start for $this");
+    print("[window] invoke window.start for $this");
     return await _channel.invokeMethod("window.start", {
       "id": id,
     });
@@ -97,6 +100,7 @@ class Window extends ChangeNotifier {
     }
     var updates = await _channel.invokeMapMethod("window.update", {
       "id": id,
+      // don't set pixelRadio
       "config": cfg.toMap(),
     });
     // var updates = await FloatwingPlugin().updateWindow(id, cfg);
@@ -118,7 +122,7 @@ class Window extends ChangeNotifier {
   Future<Window?> sync() async {
     // assert if you are in main engine should call this
     var map = await _channel.invokeMapMethod("window.sync");
-    print("sync window object from android: $map");
+    print("[window] sync window object from android: $map");
     if (map == null) return null;
     applyMap(map);
     FloatwingPlugin().saveWindow(this);
@@ -127,7 +131,7 @@ class Window extends ChangeNotifier {
 
   /// on register callback to listener
   Window on(String name, WindowListener callback) {
-    print("register event listener: $id $name");
+    print("[window] register event listener $name for $id");
     _eventManager?.on(name, callback);
     return this;
   }
@@ -139,6 +143,8 @@ class WindowConfig {
   String? entry;
   String? route;
   double? callback; // use callback to start engine
+
+  bool? autosize;
 
   int? width;
   int? height;
@@ -161,20 +167,28 @@ class WindowConfig {
   /// we need this for update, so must wihtout default value
   WindowConfig({
     this.id = "default",
+
     this.entry = "main",
     this.route,
     this.callback,
+
+    this.autosize,
+
     this.width,
     this.height,
     this.x,
     this.y,
+
     this.format,
     this.gravity,
     this.type,
+
     this.clickable,
     this.draggable,
     this.focusable,
+
     this.immersion,
+
     this.visible,
   });
 
@@ -184,6 +198,8 @@ class WindowConfig {
       entry: map["entry"],
       route: map["route"],
       callback: map["callback"],
+
+      autosize: map["autosize"],
 
       width: map["width"],
       height: map["height"],
@@ -210,6 +226,8 @@ class WindowConfig {
     map["entry"] = entry;
     map["route"] = route;
     map["callback"] = callback;
+
+    map["autosize"] = autosize;
 
     map["width"] = width;
     map["height"] = height;

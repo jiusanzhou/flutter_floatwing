@@ -44,7 +44,7 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
     // TODO: take first engine as main, but if service auto start the window
     // this will cause error
     if (FlutterEngineCache.getInstance().contains(FLUTTER_ENGINE_CACHE_KEY)) {
-      Log.d(TAG, "on attached to window engine")
+      Log.d(TAG, "[plugin] on attached to window engine")
     } else {
       // store the flutter engine @only main
       engine = binding.flutterEngine
@@ -52,9 +52,31 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
       // should install service handler for every engine? @only main
       // window has already set in this own logic
       serviceChannelInstalled = FloatwingService.installChannel(engine)
+        .also { r -> if (!r) {
+          MethodChannel(engine.dartExecutor.binaryMessenger,
+            "${FloatwingService.METHOD_CHANNEL}/window").also { it.setMethodCallHandler(this) }
+        } }
 
-      Log.d(TAG, "on attached to main engine")
+      Log.d(TAG, "[plugin] on attached to main engine")
     }
+  }
+
+  private fun savePixelRadio(pixelRadio: Double): Boolean {
+    val old = mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+      .getFloat(PIXEL_RADIO_KEY, 0F)
+    if (old > 1F) {
+      Log.d(TAG, "[plugin] pixel radio already exits")
+      return false
+    }
+
+    FloatwingService.instance?.pixelRadio = pixelRadio
+
+    // we need to save pixel radio
+    Log.d(TAG, "[plugin] pixel radio need to be saved")
+    mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE).edit()
+      .putFloat(PIXEL_RADIO_KEY, pixelRadio.toFloat())
+      .apply()
+    return true
   }
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
@@ -62,14 +84,18 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
       "plugin.initialize" -> {
         // the main engine should call initialize?
         // but the sub engine don't
-        val cbId = call.argument<Long>("callback")!!
+        val pixelRadio = call.argument("pixelRadio") ?: 1.0
+
         // store to share preference
-        mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE).edit().putLong(CALLBACK_KEY, cbId).apply()
+        // if exits don't set
+
 
         val map = HashMap<String, Any?>()
         map["permission_grated"] = permissionGiven(mContext)
         map["service_running"] = FloatwingService.isRunning(mContext)
         map["windows"] = FloatwingService.instance?.windows?.map { it.value.toMap() }
+
+        map["pixel_radio_updated"] = savePixelRadio(pixelRadio)
 
         return result.success(map)
       }
@@ -100,8 +126,12 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
         return result.success(FloatwingService.isRunning(mContext)
           .or(FloatwingService.start(mContext)))
       }
+      "window.sync" -> {
+        Log.d(TAG, "[plugin] fake window.sync")
+        return result.success(null)
+      }
       else -> {
-        Log.d(TAG, "method ${call.method} not implement")
+        Log.d(TAG, "[plugin] method ${call.method} not implement")
         result.notImplemented()
       }
     }
@@ -116,7 +146,7 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
 
     // TODO: notify the window to show and return the result?
 
-    Log.d(TAG, "on attached to activity")
+    Log.d(TAG, "[plugin] on attached to activity")
   }
 
   override fun onDetachedFromActivityForConfigChanges() {
@@ -169,6 +199,7 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
     const val FLUTTER_ENGINE_CACHE_KEY = "flutter_engine_main"
     const val SHARED_PREFERENCES_KEY = "flutter_floatwing_cache"
     const val CALLBACK_KEY = "callback_key"
+    const val PIXEL_RADIO_KEY = "pixel_radio"
 
     fun permissionGiven(context: Context): Boolean {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
