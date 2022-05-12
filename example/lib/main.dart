@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_floatwing/flutter_floatwing.dart';
+import 'package:flutter_floatwing_example/views/assistive_touch.dart';
 import 'package:flutter_floatwing_example/views/night.dart';
 import 'package:flutter_floatwing_example/views/normal.dart';
 
 void main() {
-  print("i'm flutter entry point: main");
   // only need this when you use main as window engine's entry point
   FloatwingPlugin().ensureWindow();
 
@@ -50,7 +50,8 @@ class _MyAppState extends State<MyApp> {
       routes: {
         "/": (_) => HomePage(),
         "/normal": ((_) => NonrmalView()).floatwing(),
-        "/night": ((_) => NightView()).floatwing()
+        "/night": ((_) => NightView()).floatwing(),
+        "/assitive_touch": ((_) => AssistiveTouch()).floatwing(),
       },
     );
   }
@@ -64,18 +65,38 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Window? _nornmal;
-  Window? _night;
-
-  bool _normalReady = false;
-  bool _nightReady = false;
-
   @override
   void initState() {
     super.initState();
 
     initSyncState();
   }
+
+  var _windows = [
+    WindowConfig(
+      id: "normal",
+      // entry: "floatwing",
+      route: "/normal",
+      draggable: true,
+      // gravity: 3 | 48,
+    ).to(),
+    WindowConfig(
+      id: "assitive_touch",
+      // entry: "floatwing",
+      route: "/assitive_touch",
+      draggable: true,
+      // gravity: 3 | 48,
+    ).to(),
+    WindowConfig(
+      id: "night",
+      // entry: "floatwing",
+      route: "/night",
+      width: -1, height: -1,
+      clickable: false,
+    ).to()
+  ];
+
+  Map<Window, bool> _readys = {};
 
   initSyncState() async {
     await FloatwingPlugin().initialize();
@@ -86,33 +107,17 @@ class _HomePageState extends State<HomePage> {
           print("start the backgroud service success.");
         });
     });
-    
-    _nornmal = await WindowConfig(
-      id: "normal",
 
-      // entry: "floatwing",
-      route: "/normal",
-      draggable: true,
-      // gravity: 3 | 48,
-    ).to().on("created", (w, _) {
-      print("[on-normal-created] $w");
-      _normalReady = true;
-      setState(() {});
-      // w.start();
-    }).create(start: true);
-
-    // _night = await WindowConfig(
-    //   id: "night",
-
-    //   // entry: "floatwing",
-    //   route: "/night",
-    //   width: -1, height: -1,
-    //   clickable: false,
-    // ).to().on("created", (w, _) {
-    //   print("[on-night-created] $w");
-    //   _nightReady = true;
-    //   // w.start();
-    // }).create();
+    _windows.forEach((w) => w
+        .on("created", (window, data) {
+          _readys[window] = true;
+          setState(() {});
+        })
+        .create()
+        .then((value) {
+          _readys[w] = true;
+          setState(() {});
+        }));
   }
 
   @override
@@ -123,71 +128,46 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Center(
         child: Wrap(
-          direction: Axis.vertical,
-          crossAxisAlignment: WrapCrossAlignment.center,
+          alignment: WrapAlignment.center,
+          spacing: 5,
           children: [
-            Wrap(
-              spacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                ElevatedButton(
-                    onPressed: () async {
-                      var r = await FloatwingPlugin().checkPermission();
-                      if (!r) {
-                        FloatwingPlugin().openPermissionSetting();
-                        print("no permission, need to grant");
-                      }
-                    },
-                    child: Text("Check permission")),
-              ],
-            ),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 10,
-              children: [
-                ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pushNamed(context, '/normal');
-                    },
-                    child: Text("Debug Normal")),
-                ElevatedButton(
-                    onPressed: () async {
-                      Navigator.pushNamed(context, '/night');
-                    },
-                    child: Text("Debug Night")),
-              ],
-            ),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 10,
-              children: [
-                ElevatedButton(
-                    onPressed: !_normalReady ? null : () async {
-                      print("===> $_nornmal");
-                      // destroy
-                      _nornmal?.start();
-                    },
-                    child: Text("Open Normal")),
-                ElevatedButton(
-                    onPressed: !_nightReady ? null : () async {
-                      _night?.start();
-                    },
-                    child: Text("Open Night")),
-              ],
-            ),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 10,
-              children: [
-                ElevatedButton(
-                    onPressed: () {
-                      FloatwingPlugin().windows.values.forEach((w) {
-                        w.close(force: false);
-                      });
-                    },
-                    child: Text("Close all"))
-              ],
-            ),
+            ElevatedButton(
+                onPressed: () async {
+                  var r = await FloatwingPlugin().checkPermission();
+                  if (!r) {
+                    FloatwingPlugin().openPermissionSetting();
+                    print("no permission, need to grant");
+                  }
+                },
+                child: Text("Check permission")),
+            ..._windows
+                .map((w) => Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pushNamed(context, w.config!.route!);
+                          },
+                          child: Text("Debug ${w.config!.id}"),
+                        ),
+                        ElevatedButton(
+                          onPressed: _readys[w] != true
+                              ? null
+                              : () async {
+                                  w.start();
+                                },
+                          child: Text("Open ${w.config!.id}"),
+                        ),
+                      ],
+                    ))
+                .toList(),
+            ElevatedButton(
+                onPressed: () {
+                  FloatwingPlugin().windows.values.forEach((w) {
+                    w.close(force: false);
+                  });
+                },
+                child: Text("Close all"))
           ],
         ),
       ),

@@ -2,6 +2,8 @@ package im.zoe.labs.flutter_floatwing
 
 import android.app.ActivityManager
 import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -25,6 +27,20 @@ class Utils {
 
         fun genKey(vararg items: Any?): String {
             return Utils.md5(items.joinToString(separator="-"){ "$it" }).slice(IntRange(0, 12))
+        }
+
+        fun JSONObject.toMap(): Map<String, *> = keys().asSequence().associateWith {
+            when (val value = this[it])
+            {
+                is JSONArray ->
+                {
+                    val map = (0 until value.length()).associate { Pair(it.toString(), value[it]) }
+                    JSONObject(map).toMap().values.toList()
+                }
+                is JSONObject -> value.toMap()
+                JSONObject.NULL -> null
+                else            -> value
+            }
         }
     }
 }

@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
@@ -31,11 +33,11 @@ class EventManager {
     _msgChannel.setMessageHandler((msg) {
       var map = msg as Map<dynamic, dynamic>?;
       if (map == null) {
-        print("[event] unsupported message, we except a map");
+        log("[event] unsupported message, we except a map");
       }
       var evt = Event.fromMap(map!);
       var rs = sink(evt);
-      print("[event] handled event: ${evt.name}, handlers: ${rs.length}");
+      log("[event] handled event: ${evt.name}, handlers: ${rs.length}");
       return Future.value(null);
     });
   }
@@ -84,7 +86,7 @@ class EventManager {
 
   EventManager on(Window window, String name, WindowListener callback) {
     var key = name;
-    print("[event] register listener $key for $window");
+    log("[event] register listener $key for $window");
     if (_listeners[key] == null) _listeners[key] = {};
     if (_listeners[key]![window] == null) _listeners[key]![window] = [];
     if (!_listeners[key]![window]!.contains(callback))

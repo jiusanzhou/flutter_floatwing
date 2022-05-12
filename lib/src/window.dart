@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 import 'package:flutter_floatwing/src/event.dart';
+import 'package:flutter_floatwing/src/utils.dart';
 
 class Window {
   String id = "default";
   WindowConfig? config;
 
   double? pixelRadio;
+  SystemConfig? system;
 
   EventManager? _eventManager;
 
@@ -36,6 +38,7 @@ class Window {
     if (map == null) return this;
     id = map["id"];
     pixelRadio = map["pixelRadio"] ?? 1.0;
+    system = SystemConfig.fromMap(map["system"]??{});
     config = WindowConfig.fromMap(map["config"]);
     return this;
   }
@@ -70,7 +73,6 @@ class Window {
 
   Future<bool?> start() async {
     assert(config != null, "config can't be null");
-    print("[window] invoke window.start for $this");
     return await _channel.invokeMethod("window.start", {
       "id": id,
     });

@@ -13,6 +13,7 @@ import android.os.PowerManager
 import android.util.Log
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
+import im.zoe.labs.flutter_floatwing.Utils.Companion.toMap
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
@@ -23,6 +24,8 @@ import io.flutter.plugin.common.JSONMessageCodec
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
+import org.json.JSONObject
+import java.lang.Exception
 
 class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.MessageHandler<Any?>, Service() {
 
@@ -35,6 +38,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
     lateinit var _message: BasicMessageChannel<Any?>
 
     var pixelRadio = 2.0
+    var systemConfig = emptyMap<String, Any?>()
 
     // store the window object use the id as key
     val windows = HashMap<String, FloatWindow>()
@@ -58,6 +62,16 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         pixelRadio = mContext.getSharedPreferences(FlutterFloatwingPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
             .getFloat(FlutterFloatwingPlugin.PIXEL_RADIO_KEY, 2F).toDouble()
         Log.d(TAG, "[service] load the pixel radio: $pixelRadio")
+
+        // load system config from store
+        try {
+            val str = mContext.getSharedPreferences(FlutterFloatwingPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+                .getString(FlutterFloatwingPlugin.SYSTEM_CONFIG_KEY, "{}")
+            val map = JSONObject(str)
+            systemConfig = map.toMap()
+        }catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         // install this method channel for the main engine
         FlutterEngineCache.getInstance().get(FlutterFloatwingPlugin.FLUTTER_ENGINE_CACHE_KEY)

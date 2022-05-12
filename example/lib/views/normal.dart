@@ -22,25 +22,27 @@ class _NonrmalViewState extends State<NonrmalView> {
   }
 
   Window? w;
+  bool dragging = false;
 
   @override
   Widget build(BuildContext context) {
     // context.floatwingWindow
     if (w == null) {
       w = Window.of(context);
-      print("window-normal take window from context: $w");
-      if (w != null) {
-        print("window-normal register 1 ==> $w 2 ==> ${FloatwingPlugin().currentWindow}");
-        w?.on("drag_start", (window, data) {
-          print("window-normal drag_start ===========> $data");
-        });
-      }
+      w?.on("drag_start", (window, data) {
+        setState(() => { dragging = true });
+      });
+      w?.on("drag_end", (window, data) {
+        setState(() => { dragging = false });
+      });
     }
+
     return AnimatedContainer(
-      duration: Duration(milliseconds: 100),
+      duration: Duration(milliseconds: 50),
       width: _size,
       height: _size,
       child: Card(
+        color: dragging ? Colors.green : null,
         child: Center(
           child: Wrap(
             direction: Axis.vertical,

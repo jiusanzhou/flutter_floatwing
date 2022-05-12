@@ -162,7 +162,8 @@ class FloatWindow(
         val map = HashMap<String, Any?>()
         map["id"] = key
         map["pixelRadio"] = service.pixelRadio
-        map["config"] = config.toMap()?.filter { it.value != null }
+        map["system"] = service.systemConfig
+        map["config"] = config.toMap().filter { it.value != null }
         return map
     }
 
@@ -310,8 +311,8 @@ class FloatWindow(
             val cfg = this
             return LayoutParams().apply {
                 // set size
-                width = cfg.width ?: 100 // we must have 1 pixel, let flutter can generate the pixel radio
-                height = cfg.height ?: 100 // we must have 1 pixel, let flutter can generate the pixel radio
+                width = cfg.width ?: 1 // we must have 1 pixel, let flutter can generate the pixel radio
+                height = cfg.height ?: 1 // we must have 1 pixel, let flutter can generate the pixel radio
 
                 // set position fixed if with (x, y)
                 cfg.x?.let { x = it } // default not set
@@ -321,7 +322,7 @@ class FloatWindow(
                 format = cfg.format ?: PixelFormat.TRANSPARENT
 
                 // default start from center
-                gravity = cfg.gravity ?: Gravity.CENTER
+                gravity = cfg.gravity ?: Gravity.TOP or Gravity.LEFT
 
                 // default flags
                 flags = FLAG_LAYOUT_IN_SCREEN or FLAG_NOT_TOUCH_MODAL

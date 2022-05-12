@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_floatwing/src/event.dart';
+import 'package:flutter_floatwing/src/utils.dart';
 import 'package:flutter_floatwing/src/window.dart';
 
 class FloatwingPlugin {
@@ -86,10 +87,15 @@ class FloatwingPlugin {
     // if service started will return all windows
     var map = await _channel.invokeMapMethod("plugin.initialize", {
       // "start_service": true,
+      // "callback": _callback,
+
+      // DEPRECATED: use system
       "pixelRadio": window.devicePixelRatio,
+
+      "system": SystemConfig().toMap(),
     });
 
-    print("[plugin] initialize result: $map");
+    log("[plugin] initialize result: $map");
 
     _serviceRunning = map?["service_running"];
     _permissionGranted = map?["permission_grated"];
@@ -100,7 +106,7 @@ class FloatwingPlugin {
       _windows[w.id] = w;
     });
 
-    print("[plugin] there are ${_windows.length} windows already started");
+    log("[plugin] there are ${_windows.length} windows already started");
 
     return true;
   }
@@ -119,6 +125,10 @@ class FloatwingPlugin {
 
   Future<bool> startService() async {
     return await _channel.invokeMethod("plugin.start_service");
+  }
+
+  Future<bool> cleanCache() async {
+    return await _channel.invokeMethod("plugin.clean_cache");
   }
 
   // create window object
@@ -164,7 +174,7 @@ class FloatwingPlugin {
     // window object don't have sync method, we must do at here
     // assert if you are in main engine should call this
     var map = await Window.sync();
-    print("[window] sync window object from android: $map");
+    log("[window] sync window object from android: $map");
     if (map == null) return null;
     // store current window if needed
     // use the static window first
@@ -175,57 +185,6 @@ class FloatwingPlugin {
     _window!.applyMap(map);
     return _window;
   }
-
-  // Future<bool> startWindow(String id) async {
-  //   return await _bgChannel.invokeMethod("service.start_window", {
-  //     "id": id
-  //   });
-  // }
-
-  // Future<bool> closeWindow(String id, {bool force = false}) async {
-  //   return await _bgChannel.invokeMethod("service.close_window", {
-  //     "id": id,
-  //     "force": force,
-  //   });
-  // }
-
-  // Future<Map<dynamic, dynamic>?> updateWindow(
-  //     String id, WindowConfig config) async {
-  //   var updates = await _bgChannel.invokeMapMethod("service.update_window", {
-  //     "id": id,
-  //     "config": config.toMap(),
-  //   });
-  //   // store the window to cache
-  //   _windows[id]?.applyMap(updates);
-  //   return updates;
-  // }
-
-  // Future<bool> showWindow(String id, bool v) async {
-  //   return await _bgChannel.invokeMethod("service.show_window", {
-  //     "id": id,
-  //     "visible": v
-  //   });
-  // }
-
-  // Window? getWindow(String id) {
-  //   return _windows[id];
-  // }
-
-  /// sync window return a window from engine
-  /// when in the flutter don't known window object.
-  // Future<Window?> syncWindow() async {
-  //   if (_window != null) return _window;
-  //   // create window and sync from service
-  //   return Window(null).sync();
-
-  //   // var map = await MethodChannel('$channelID/bg_method/window')
-  //   //   .invokeMapMethod("window.init");
-  //   // print("receive init call from android: $map");
-  //   // var w = Window.fromMap(map);
-  //   // // set to static
-  //   // FloatwingPlugin()._window = w;
-  //   // return w;
-  // }
 
   static void _callback() async {}
 }
