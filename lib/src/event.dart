@@ -27,6 +27,7 @@ class Event {
   }
 }
 
+// final SendPort? _send = IsolateNameServer.lookupPortByName(SEND_PORT_NAME);
 class EventManager {
   EventManager._(this._msgChannel) {
     // set just for window, so window have no need to do this

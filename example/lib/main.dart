@@ -8,11 +8,10 @@ import 'package:flutter_floatwing_example/views/normal.dart';
 void main() {
   // only need this when you use main as window engine's entry point
   FloatwingPlugin().ensureWindow();
-
   runApp(MyApp());
 }
 
-@pragma("vm:floatwing")
+@pragma("vm:entry-point")
 void floatwing() {
   // only need this when you use main as window engine's entry point
   FloatwingPlugin().ensureWindow();
@@ -148,7 +147,7 @@ class _HomePageState extends State<HomePage> {
                           onPressed: () async {
                             Navigator.pushNamed(context, w.config!.route!);
                           },
-                          child: Text("Debug ${w.config!.id}"),
+                          child: Text("Debug ${w.id}"),
                         ),
                         ElevatedButton(
                           onPressed: _readys[w] != true
@@ -156,7 +155,7 @@ class _HomePageState extends State<HomePage> {
                               : () async {
                                   w.start();
                                 },
-                          child: Text("Open ${w.config!.id}"),
+                          child: Text("Open ${w.id}"),
                         ),
                       ],
                     ))

@@ -117,10 +117,8 @@ class Window {
   /// on register callback to listener
   Window on(
     String name,
-    WindowListener callback, {
-    String prefix = "window.",
-  }) {
-    var key = "$prefix$name";
+    WindowListener callback) {
+    var key = "$name";
     _eventManager?.on(this, key, callback);
     return this;
   }
@@ -253,8 +251,4 @@ class WindowConfig {
     map.removeWhere((key, value) => value == null);
     return json.encode(map).toString();
   }
-}
-
-enum Aligment {
-  center,
 }

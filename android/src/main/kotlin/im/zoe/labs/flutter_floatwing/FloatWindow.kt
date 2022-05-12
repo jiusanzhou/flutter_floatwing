@@ -242,16 +242,11 @@ class FloatWindow(
                 // touch move
                 val dx = event.rawX - lastX
                 val dy = event.rawY - lastY
+
                 // ignore too small fist start moving(some time is click)
-                if (!dragging && dx*dx+dy*dy < 64) {
+                if (!dragging && dx*dx+dy*dy < 25) {
                     return false
                 }
-                if (!dragging) {
-                    // first time dragging
-                    emit("drag_start", listOf(event.rawX, event.rawY))
-                }
-
-                dragging = true
 
                 // update the last point
                 lastX = event.rawX
@@ -259,6 +254,13 @@ class FloatWindow(
 
                 val xx = layoutParams.x + dx.toInt()
                 val yy = layoutParams.y + dy.toInt()
+
+                if (!dragging) {
+                    // first time dragging
+                    emit("drag_start", listOf(xx, yy))
+                }
+
+                dragging = true
                 // update x, y, need to update config so use config to update
                 update(Config().apply {
                     // calculate with the border
@@ -266,11 +268,12 @@ class FloatWindow(
                     y = yy
                 })
 
-                emit("dragging", listOf(layoutParams.x, layoutParams.y))
+                emit("dragging", listOf(xx, yy))
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 // touch end
                 if (dragging) emit("drag_end", listOf(event.rawX, event.rawY))
+                return dragging
             }
             else -> {
                 return false

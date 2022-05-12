@@ -5,9 +5,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
-@immutable
 class AssistiveTouch extends StatefulWidget {
-  const AssistiveTouch({
+  const AssistiveTouch({ Key? key }) : super(key: key);
+
+  @override
+  State<AssistiveTouch> createState() => _AssistiveTouchState();
+}
+
+class _AssistiveTouchState extends State<AssistiveTouch> {
+  @override
+  Widget build(BuildContext context) {
+    return AssistiveButton();
+  }
+}
+
+@immutable
+class AssistiveButton extends StatefulWidget {
+  const AssistiveButton({
     Key? key,
     this.child = const _DefaultChild(),
     this.visible = true,
@@ -34,16 +48,6 @@ class AssistiveTouch extends StatefulWidget {
   /// Empty space to surround the [child].
   final EdgeInsets margin;
 
-  /// Initial position.
-  ///
-  /// For example, if you want to put Assistive Touch to left-bottom cornor:
-  ///
-  /// ```dart
-  /// AssistiveTouch(
-  ///   initialOffset: const Offset(double.infinity, 0);
-  ///   ...
-  /// )
-  /// ```
   final Offset initialOffset;
 
   /// A tap with a primary button has occurred.
@@ -57,10 +61,10 @@ class AssistiveTouch extends StatefulWidget {
   )? animatedBuilder;
 
   @override
-  _AssistiveTouchState createState() => _AssistiveTouchState();
+  _AssistiveButtonState createState() => _AssistiveButtonState();
 }
 
-class _AssistiveTouchState extends State<AssistiveTouch>
+class _AssistiveButtonState extends State<AssistiveButton>
     with TickerProviderStateMixin {
   bool isInitialized = false;
   late Offset offset = widget.initialOffset;
@@ -135,24 +139,14 @@ class _AssistiveTouchState extends State<AssistiveTouch>
   Widget build(BuildContext context) {
     var child = widget.child;
 
-    child = _MyMeasuredSize(
-      child: child,
-      onChange: (size) {
-        setState(() {
-          this.size = size;
-        });
-        _setOffset(offset);
-      },
-    );
-
     if (window == null) {
       window = Window.of(context);
-      window?.on("drag_start", (window, data) => _onDragStart());
-      window?.on("dragging", (window, data) {
+      window?.on(EventWindowDragStart, (window, data) => _onDragStart());
+      window?.on(EventWindowDragging, (window, data) {
         var p = data as List<dynamic>;
         _onDragUpdate(p[0], p[1]);
       });
-      window?.on("drag_end", (window, data) => _onDragEnd());
+      window?.on(EventWindowDragEnd, (window, windowdata) => _onDragEnd());
     }
 
     child = GestureDetector(
@@ -174,9 +168,8 @@ class _AssistiveTouchState extends State<AssistiveTouch>
     return child;
   }
 
-  void _onTap() {
+  void _onTap() async {
     if (widget.onTap != null) {
-      widget.onTap!();
       setState(() {
         isIdle = false;
       });
@@ -278,53 +271,35 @@ class _AssistiveTouchState extends State<AssistiveTouch>
   }
 }
 
-class _MyMeasuredSize extends StatefulWidget {
-  const _MyMeasuredSize({
+class _AssistivePannel extends StatefulWidget {
+  final Window? window;
+  final VoidCallback onCancel;
+  const _AssistivePannel({
     Key? key,
-    required this.onChange,
-    required this.child,
+    required this.window,
+    required this.onCancel,
   }) : super(key: key);
 
-  final Widget child;
-
-  final void Function(Size size) onChange;
-
   @override
-  _MyMeasuredSizeState createState() => _MyMeasuredSizeState();
+  State<_AssistivePannel> createState() => _AssistivePannelState();
 }
 
-class _MyMeasuredSizeState extends State<_MyMeasuredSize> {
-  @override
-  void initState() {
-    SchedulerBinding.instance!.addPostFrameCallback(postFrameCallback);
-    super.initState();
-  }
-
+class _AssistivePannelState extends State<_AssistivePannel> {
   @override
   Widget build(BuildContext context) {
-    SchedulerBinding.instance!.addPostFrameCallback(postFrameCallback);
-    return Container(
-      key: widgetKey,
-      child: widget.child,
-    );
-  }
-
-  final widgetKey = GlobalKey();
-  Size? oldSize;
-
-  void postFrameCallback(Duration _) async {
-    final context = widgetKey.currentContext!;
-
-    await Future<void>.delayed(
-      const Duration(milliseconds: 100),
-    );
-    if (mounted == false) return;
-
-    final newSize = context.size!;
-    if (newSize == Size.zero) return;
-    if (oldSize == newSize) return;
-    oldSize = newSize;
-    widget.onChange(newSize);
+    return GestureDetector(
+        onTap: widget.onCancel,
+        child: Container(
+          height: MediaQuery.of(context).size.height,
+          width: MediaQuery.of(context).size.width,
+          child: Positioned(
+              top: 100,
+              child: Container(
+                width: 0.8 * MediaQuery.of(context).size.width,
+                height: 500,
+                color: Colors.redAccent,
+              )),
+        ));
   }
 }
 

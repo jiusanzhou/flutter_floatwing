@@ -43,8 +43,6 @@ class FloatwingContainer extends StatefulWidget {
 }
 
 class _FloatwingContainerState extends State<FloatwingContainer> {
-  var _key = GlobalKey();
-
   Window? _window = FloatwingPlugin().currentWindow;
 
   var _ignorePointer = false;
@@ -54,8 +52,6 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
   void initState() {
     super.initState();
     initSyncState();
-
-    // SchedulerBinding.instance?.addPostFrameCallback((_) {});
   }
 
   initSyncState() async {
@@ -66,8 +62,30 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
     // init window from engine and save, only call this int here
     // sync a window from engine
     _updateFromWindow();
-    _window?.on("resumed", (w, _) => _updateFromWindow());
+    _window?.on(EventWindowResumed, (w, _) => _updateFromWindow());
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: _MeasuredSized(
+        onChange: _autosize ? _onSizeChanged : null,
+        child: FloatwingProvider(
+          child: Builder(builder: widget.builder ?? (_) => widget.child!),
+          window: _window,
+        ).ignorePointer(ignoring: _ignorePointer),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    // TODO: remove event listener
+    // w.un("resumed").un("")
+  }
+
 
   _updateFromWindow() {
     // clickable == !ignorePointer
@@ -80,83 +98,12 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
     setState(() {});
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: _MeasuredSized(
-        onChange: _onSizeChanged,
-        child: FloatwingProvider(
-          child: Builder(builder: widget.builder ?? (_) => widget.child!),
-          window: _window,
-        ).ignorePointer(ignoring: _ignorePointer),
-      ),
-    );
-  }
-
   _onSizeChanged(Size size) {
     var radio = _window?.pixelRadio ?? 0;
     _window?.update(WindowConfig(
       width: (size.width * radio).toInt(),
       height: (size.height * radio).toInt(),
     ));
-  }
-
-  // @override
-  Widget buildx(BuildContext context) {
-    SchedulerBinding.instance?.addPostFrameCallback(_onPostFrame);
-    return Material(
-      color: Colors.transparent,
-      child: UnconstrainedBox(
-        child: FloatwingProvider(
-          child: Container(
-              key: _key,
-              child: NotificationListener<SizeChangedLayoutNotification>(
-                onNotification: (n) {
-                  SchedulerBinding.instance?.addPostFrameCallback(_onPostFrame);
-                  return true;
-                },
-                child: SizeChangedLayoutNotifier(
-                  child: widget.builder != null
-                      ? Builder(builder: widget.builder!)
-                      : widget.child!,
-                ),
-              )).ignorePointer(ignoring: _ignorePointer),
-          window: _window,
-        ),
-      ),
-    );
-  }
-
-  var _oldSize;
-
-  void _onPostFrame(_) {
-    if (!_autosize) return;
-
-    var size = _key.currentContext?.size;
-
-    log("[provider] autosize enable, on size change: $size");
-
-    if (size == null || _window == null) {
-      _oldSize = size;
-      return;
-    }
-
-    _oldSize = size;
-    log("old: $_oldSize, new: $size");
-
-    // take pixelRadio from window
-    var _pixelRadio = _window?.pixelRadio ?? 1;
-
-    _window
-        ?.update(WindowConfig(
-      width: (size.width * _pixelRadio).toInt(),
-      height: (size.height * _pixelRadio).toInt(),
-    ))
-        .then((w) {
-      // window object hasbee update
-      log("[provider] update window size: $w $_window");
-    });
   }
 }
 
@@ -172,7 +119,7 @@ class _MeasuredSized extends StatefulWidget {
 
   final int delay;
 
-  final void Function(Size size) onChange;
+  final void Function(Size size)? onChange;
 
   @override
   _MeasuredSizedState createState() => _MeasuredSizedState();
@@ -187,6 +134,7 @@ class _MeasuredSizedState extends State<_MeasuredSized> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.onChange == null) return widget.child;
     SchedulerBinding.instance!.addPostFrameCallback(postFrameCallback);
     return UnconstrainedBox(
       child: Container(
@@ -216,7 +164,7 @@ class _MeasuredSizedState extends State<_MeasuredSized> {
     if (newSize == Size.zero) return;
     // if (oldSize == newSize) return;
     oldSize = newSize;
-    widget.onChange(newSize);
+    widget.onChange!(newSize);
   }
 }
 

@@ -145,7 +145,7 @@ class FloatwingPlugin {
     // store the window first
     // window.id can't be updated
     // for main engine use
-    if (window != null) _windows[window.id] = window;
+    // if (window != null) _windows[window.id] = window;
     var updates =
         await _channel.invokeMapMethod<String, dynamic>("plugin.create_window", {
       "id": id,
