@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
-import 'package:flutter_floatwing/src/event.dart';
-import 'package:flutter_floatwing/src/utils.dart';
 
 class Window {
   String id = "default";
@@ -128,7 +126,7 @@ class WindowConfig {
 
   String? entry;
   String? route;
-  double? callback; // use callback to start engine
+  int? callback; // use callback to start engine
 
   bool? autosize;
 
@@ -138,7 +136,7 @@ class WindowConfig {
   int? y;
 
   int? format;
-  int? gravity;
+  GravityType? gravity;
   int? type;
 
   bool? clickable;
@@ -186,7 +184,7 @@ class WindowConfig {
       y: map["y"],
 
       format: map["format"],
-      gravity: map["gravity"],
+      gravity: GravityType.Unknown.fromInt(map["gravity"]),
       type: map["type"],
 
       clickable: map["clickable"],
@@ -214,7 +212,7 @@ class WindowConfig {
     map["y"] = y;
 
     map["format"] = format;
-    map["gravity"] = gravity;
+    map["gravity"] = gravity?.toInt();
     map["type"] = type;
 
     map["clickable"] = clickable;
