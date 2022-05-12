@@ -235,7 +235,7 @@ class WindowConfig {
     return Window(id: this.id ?? "default", config: this);
   }
 
-  Future<Window> create({
+  Future<Window?> create({
     String? id = "default",
     bool start = false,
   }) async {

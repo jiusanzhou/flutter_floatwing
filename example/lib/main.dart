@@ -6,8 +6,6 @@ import 'package:flutter_floatwing_example/views/night.dart';
 import 'package:flutter_floatwing_example/views/normal.dart';
 
 void main() {
-  // only need this when you use main as window engine's entry point
-  FloatwingPlugin().ensureWindow();
   runApp(MyApp());
 }
 
@@ -35,9 +33,48 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  var _configs = [
+    WindowConfig(
+      id: "normal",
+      // entry: "floatwing",
+      route: "/normal",
+      draggable: true,
+      // gravity: 3 | 48,
+    ),
+    WindowConfig(
+      id: "assitive_touch",
+      // entry: "floatwing",
+      route: "/assitive_touch",
+      draggable: true,
+      // gravity: 3 | 48,
+    ),
+    WindowConfig(
+      id: "night",
+      // entry: "floatwing",
+      route: "/night",
+      width: -1, height: -1,
+      clickable: false,
+    )
+  ];
+
+  Map<String, WidgetBuilder> _builders = {
+    "normal": (_) => NonrmalView(),
+    "assitive_touch": (_) => AssistiveTouch(),
+    "night": (_) => NightView(),
+  };
+
+  Map<String, Widget Function(BuildContext)> _routes = {};
+
   @override
   void initState() {
     super.initState();
+
+    _routes["/"] = (_) => HomePage(configs: _configs);
+
+    _configs.forEach((c) => {
+          if (c.route != null && _builders[c.id] != null)
+            {_routes[c.route!] = _builders[c.id]!.floatwing()}
+        });
   }
 
   @override
@@ -45,19 +82,14 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       initialRoute: "/",
-      // TODO: bug start other engine will also execute home page
-      routes: {
-        "/": (_) => HomePage(),
-        "/normal": ((_) => NonrmalView()).floatwing(),
-        "/night": ((_) => NightView()).floatwing(),
-        "/assitive_touch": ((_) => AssistiveTouch()).floatwing(),
-      },
+      routes: _routes,
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  final List<WindowConfig> configs;
+  const HomePage({Key? key, required this.configs}) : super(key: key);
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -68,32 +100,12 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
+    widget.configs.forEach((c) => _windows.add(c.to()));
+
     initSyncState();
   }
 
-  var _windows = [
-    WindowConfig(
-      id: "normal",
-      // entry: "floatwing",
-      route: "/normal",
-      draggable: true,
-      // gravity: 3 | 48,
-    ).to(),
-    WindowConfig(
-      id: "assitive_touch",
-      // entry: "floatwing",
-      route: "/assitive_touch",
-      draggable: true,
-      // gravity: 3 | 48,
-    ).to(),
-    WindowConfig(
-      id: "night",
-      // entry: "floatwing",
-      route: "/night",
-      width: -1, height: -1,
-      clickable: false,
-    ).to()
-  ];
+  List<Window> _windows = [];
 
   Map<Window, bool> _readys = {};
 
@@ -108,14 +120,16 @@ class _HomePageState extends State<HomePage> {
     });
 
     _windows.forEach((w) => w
-        .on("created", (window, data) {
+        .on(EventWindowCreated, (window, data) {
           _readys[window] = true;
           setState(() {});
         })
         .create()
-        .then((value) {
-          _readys[w] = true;
-          setState(() {});
+        .then((_) {
+          if (_!=null) {
+            _readys[w] = true;
+            setState(() {});
+          }
         }));
   }
 
@@ -141,7 +155,7 @@ class _HomePageState extends State<HomePage> {
                 child: Text("Check permission")),
             ..._windows
                 .map((w) => Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         ElevatedButton(
                           onPressed: () async {

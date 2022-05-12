@@ -28,8 +28,6 @@ class FloatwingPlugin {
     // });
   }
 
-  static String debugName = "main";
-
   static const String channelID = "im.zoe.labs/flutter_floatwing";
 
   static final MethodChannel _channel = MethodChannel('$channelID/method');
@@ -132,7 +130,7 @@ class FloatwingPlugin {
   }
 
   // create window object
-  Future<Window> createWindow(
+  Future<Window?> createWindow(
     String? id,
     WindowConfig config, {
     bool start = false, // start immediately if true
@@ -147,11 +145,15 @@ class FloatwingPlugin {
     // for main engine use
     // if (window != null) _windows[window.id] = window;
     var updates =
-        await _channel.invokeMapMethod<String, dynamic>("plugin.create_window", {
+        await _channel.invokeMapMethod("plugin.create_window", {
       "id": id,
       "config": config.toMap(),
       "start": start,
     });
+    // create window failed
+    if (updates == null) {
+      return null;
+    }
     // if window is not created, new one
     var w = (window ?? Window()).applyMap(updates);
     // store current window for window engine

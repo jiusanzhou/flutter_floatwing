@@ -18,7 +18,6 @@ class _NonrmalViewState extends State<NonrmalView> {
   @override
   void initState() {
     super.initState();
-    FloatwingPlugin.debugName = "window-normal";
   }
 
   Window? w;
@@ -29,10 +28,10 @@ class _NonrmalViewState extends State<NonrmalView> {
     // context.floatwingWindow
     if (w == null) {
       w = Window.of(context);
-      w?.on("drag_start", (window, data) {
+      w?.on(EventWindowDragStart, (window, data) {
         setState(() => { dragging = true });
       });
-      w?.on("drag_end", (window, data) {
+      w?.on(EventWindowDragEnd, (window, data) {
         setState(() => { dragging = false });
       });
     }
