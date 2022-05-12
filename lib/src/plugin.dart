@@ -3,31 +3,45 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_floatwing/src/event.dart';
 import 'package:flutter_floatwing/src/window.dart';
 
 class FloatwingPlugin {
   FloatwingPlugin._() {
     WidgetsFlutterBinding.ensureInitialized();
 
-    _bgChannel.setMethodCallHandler((call) {
-      var id = call.arguments as String;
-      // if we are window egine, should call main engine
-      FloatwingPlugin().windows[id]?.eventManager?.sink(call.method, call.arguments);
-      switch (call.method) {
+    // make sure this only be called once
+    // what happens when multiple window instances
+    // are created and register event handlers?
+    // Window().on(): id -> [Window, Window]
+    // _eventManager = EventManager(_msgChannel);
 
-      }
-      return Future.value(null);
-    });
+    // _bgChannel.setMethodCallHandler((call) {
+    //   var id = call.arguments as String;
+    //   // if we are window egine, should call main engine
+    //   FloatwingPlugin().windows[id]?.eventManager?.sink(call.method, call.arguments);
+    //   switch (call.method) {
+
+    //   }
+    //   return Future.value(null);
+    // });
   }
+
+  static String debugName = "main";
 
   static const String channelID = "im.zoe.labs/flutter_floatwing";
 
   static final MethodChannel _channel = MethodChannel('$channelID/method');
+
   static final MethodChannel _bgChannel = MethodChannel('$channelID/bg_method');
+  
   static final BasicMessageChannel _msgChannel =
       BasicMessageChannel('$channelID/bg_message', JSONMessageCodec());
 
   static final FloatwingPlugin _instance = FloatwingPlugin._();
+
+  /// event manager
+  // EventManager? _eventManager;
 
   /// flag for inited
   bool _inited = false;
@@ -54,11 +68,6 @@ class FloatwingPlugin {
 
   /// return current window for window's engine
   Window? get currentWindow => _window;
-
-  /// update the current window
-  saveWindow(Window w) {
-    _window = w;
-  }
 
   factory FloatwingPlugin() {
     return _instance;
@@ -123,13 +132,22 @@ class FloatwingPlugin {
     if (!await checkPermission()) {
       throw Exception("no permission to create window");
     }
+    // store the window first
+    // window.id can't be updated
+    // for main engine use
+    if (window != null) _windows[window.id] = window;
     var updates =
         await _channel.invokeMapMethod<String, dynamic>("plugin.create_window", {
       "id": id,
       "config": config.toMap(),
       "start": start,
     });
+    // if window is not created, new one
     var w = (window ?? Window()).applyMap(updates);
+    // store current window for window engine
+    // for window engine use, update the current window
+    // if we use create_window first
+    _window = w;
     // store the window to cache
     _windows[w.id] = w;
     return w;
@@ -140,8 +158,22 @@ class FloatwingPlugin {
   /// you should only call this in the window engine
   /// if only main as entry point, it's ok to call this
   /// and return nothing
+  // only window engine call this
+  // make sure window engine return only one window from every where
   Future<Window?> ensureWindow() async {
-    return Window().sync();
+    // window object don't have sync method, we must do at here
+    // assert if you are in main engine should call this
+    var map = await Window.sync();
+    print("[window] sync window object from android: $map");
+    if (map == null) return null;
+    // store current window if needed
+    // use the static window first
+    // so sync will return only one instance of window
+    // improve this logic
+    // means first time call sync, just create a new window
+    if (_window == null) _window = Window();
+    _window!.applyMap(map);
+    return _window;
   }
 
   // Future<bool> startWindow(String id) async {

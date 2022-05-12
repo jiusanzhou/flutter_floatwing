@@ -14,11 +14,11 @@ class _NonrmalViewState extends State<NonrmalView> {
 
   bool _expend = false;
   double _size = 100;
-  double _cSize = 100;
 
   @override
   void initState() {
     super.initState();
+    FloatwingPlugin.debugName = "window-normal";
   }
 
   Window? w;
@@ -28,7 +28,13 @@ class _NonrmalViewState extends State<NonrmalView> {
     // context.floatwingWindow
     if (w == null) {
       w = Window.of(context);
-      print("take window from context: $w");
+      print("window-normal take window from context: $w");
+      if (w != null) {
+        print("window-normal register 1 ==> $w 2 ==> ${FloatwingPlugin().currentWindow}");
+        w?.on("drag_start", (window, data) {
+          print("window-normal drag_start ===========> $data");
+        });
+      }
     }
     return AnimatedContainer(
       duration: Duration(milliseconds: 100),

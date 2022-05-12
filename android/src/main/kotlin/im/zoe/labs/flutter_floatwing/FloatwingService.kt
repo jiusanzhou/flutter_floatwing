@@ -247,8 +247,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             Log.d(TAG, "[service] set window as handler $METHOD_CHANNEL/window for $eng")
         }.init().also {
             Log.d(TAG, "[service] created window: $id $config")
-            if (!fromCache) it.emit("init_new")
-            it.emit("created")
+            it.emit("created", !fromCache)
             windows[it.key] = it
             if (start) it.start()
         }.toMap()
@@ -302,6 +301,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
     private fun installChannel(eng: FlutterEngine): Boolean {
         Log.d(TAG, "[service] set service as handler $METHOD_CHANNEL/window for $eng")
         // set the method and message channel
+        // this must be same as window, because we use the same method to call invoke
         _channel = MethodChannel(eng.dartExecutor.binaryMessenger,
             "$METHOD_CHANNEL/window").also { it.setMethodCallHandler(this) }
         _message = BasicMessageChannel(eng.dartExecutor.binaryMessenger,

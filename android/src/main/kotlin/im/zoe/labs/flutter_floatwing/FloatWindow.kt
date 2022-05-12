@@ -143,11 +143,18 @@ class FloatWindow(
     }
 
     fun emit(name: String, data: Any? = null) {
-        Log.i(TAG, "[window] emit event: Window[$key] $name ")
-        _channel.invokeMethod("window.$name", data)
-
+        // Log.i(TAG, "[window] emit event: Window[$key] $name ")
+        val map = HashMap<String, Any?>()
+        map["name"] = "window.$name"
+        map["id"] = key // this is special for main engine
+        map["data"] = data
+        _message.send(map)
         // we need to send to man engine
-        service._channel.invokeMethod("window.$name", key)
+        service._message.send(map)
+
+        // _channel.invokeMethod("window.$name", data)
+        // we need to send to man engine
+        // service._channel.invokeMethod("window.$name", key)
     }
 
     fun toMap(): Map<String, Any?> {
@@ -235,7 +242,7 @@ class FloatWindow(
                 val dx = event.rawX - lastX
                 val dy = event.rawY - lastY
                 // ignore too small fist start moving(some time is click)
-                if (!dragging && dx*dx+dy*dy < 25) {
+                if (!dragging && dx*dx+dy*dy < 64) {
                     return false
                 }
                 if (!dragging) {

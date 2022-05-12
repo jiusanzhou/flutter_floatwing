@@ -12,23 +12,9 @@ class Window {
 
   EventManager? _eventManager;
 
-  EventManager? get eventManager => _eventManager;
-
   Window({this.id = "default", this.config}) {
-    _eventManager = EventManager(this);
-
-    _channel.setMethodCallHandler((call) {
-      var res = _eventManager?.sink(call.method, call.arguments) ?? [];
-      if (res.length > 0) {
-        print("[window] handled event: ${call.method}");
-        return Future.value(null);
-      }
-
-      switch (call.method) {
-      }
-      print("[window] unknown listender or method register: ${call.method}");
-      return Future.value(null);
-    });
+    // this will cause the channel called setHandler multi times
+    _eventManager = EventManager(_message, window: this);
   }
 
   static final MethodChannel _channel =
@@ -42,7 +28,7 @@ class Window {
 
   @override
   String toString() {
-    return "Window[$id]: $config";
+    return "Window[$id]@${super.hashCode}, ${_eventManager.toString()}, config: $config";
   }
 
   Window applyMap(Map<dynamic, dynamic>? map) {
@@ -78,7 +64,8 @@ class Window {
 
   Future<Window?> create({bool start = false}) async {
     // // create the engine first
-    return await FloatwingPlugin().createWindow(this.id, this.config!, window: this);
+    return await FloatwingPlugin()
+        .createWindow(this.id, this.config!, window: this);
   }
 
   Future<bool?> start() async {
@@ -119,20 +106,20 @@ class Window {
 
   // sync window object from android service
   // only window engine call this
-  Future<Window?> sync() async {
-    // assert if you are in main engine should call this
-    var map = await _channel.invokeMapMethod("window.sync");
-    print("[window] sync window object from android: $map");
-    if (map == null) return null;
-    applyMap(map);
-    FloatwingPlugin().saveWindow(this);
-    return this;
+  // if we manage other windows in some window engine
+  // this will not works, we must improve it
+  static Future<Map<dynamic, dynamic>?> sync() async {
+    return await _channel.invokeMapMethod("window.sync");
   }
 
   /// on register callback to listener
-  Window on(String name, WindowListener callback) {
-    print("[window] register event listener $name for $id");
-    _eventManager?.on(name, callback);
+  Window on(
+    String name,
+    WindowListener callback, {
+    String prefix = "window.",
+  }) {
+    var key = "$prefix$name";
+    _eventManager?.on(this, key, callback);
     return this;
   }
 }
@@ -167,28 +154,21 @@ class WindowConfig {
   /// we need this for update, so must wihtout default value
   WindowConfig({
     this.id = "default",
-
     this.entry = "main",
     this.route,
     this.callback,
-
     this.autosize,
-
     this.width,
     this.height,
     this.x,
     this.y,
-
     this.format,
     this.gravity,
     this.type,
-
     this.clickable,
     this.draggable,
     this.focusable,
-
     this.immersion,
-
     this.visible,
   });
 
@@ -251,6 +231,7 @@ class WindowConfig {
 
   // return a window frm config
   Window to() {
+    // will lose window instance
     return Window(id: this.id ?? "default", config: this);
   }
 

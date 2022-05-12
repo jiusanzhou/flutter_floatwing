@@ -101,18 +101,18 @@ class _HomePageState extends State<HomePage> {
       // w.start();
     }).create(start: true);
 
-    _night = await WindowConfig(
-      id: "night",
+    // _night = await WindowConfig(
+    //   id: "night",
 
-      // entry: "floatwing",
-      route: "/night",
-      width: -1, height: -1,
-      clickable: false,
-    ).to().on("created", (w, _) {
-      print("[on-night-created] $w");
-      _nightReady = true;
-      // w.start();
-    }).create();
+    //   // entry: "floatwing",
+    //   route: "/night",
+    //   width: -1, height: -1,
+    //   clickable: false,
+    // ).to().on("created", (w, _) {
+    //   print("[on-night-created] $w");
+    //   _nightReady = true;
+    //   // w.start();
+    // }).create();
   }
 
   @override

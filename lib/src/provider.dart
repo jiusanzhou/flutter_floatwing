@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -61,12 +62,15 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
   initSyncState() async {
     if (_window == null) {
       print("[provider] don't sync window at init, need to do at here");
-      await Window().sync().then((w) => _window = w);
+      await FloatwingPlugin().ensureWindow().then((w) {
+        _window = w;
+        print("[window-normal] register event listener ===> $_window $w");
+      });
     }
     // init window from engine and save, only call this int here
     // sync a window from engine
     print("[provider] sync finish, so trigger to rebuild");
-    print("[provider] window: $_window");
+    print("[provider] window: $_window ${FloatwingPlugin().currentWindow}");
     _updateFromWindow();
     _window?.on("resumed", (w, _) => _updateFromWindow());
   }
