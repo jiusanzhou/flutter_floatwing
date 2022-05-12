@@ -62,7 +62,7 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
     // init window from engine and save, only call this int here
     // sync a window from engine
     _updateFromWindow();
-    _window?.on(EventWindowResumed, (w, _) => _updateFromWindow());
+    _window?.on(EventType.WindowResumed, (w, _) => _updateFromWindow());
   }
 
   @override

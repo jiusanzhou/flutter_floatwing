@@ -6,7 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
 class AssistiveTouch extends StatefulWidget {
-  const AssistiveTouch({ Key? key }) : super(key: key);
+  const AssistiveTouch({Key? key}) : super(key: key);
 
   @override
   State<AssistiveTouch> createState() => _AssistiveTouchState();
@@ -141,12 +141,12 @@ class _AssistiveButtonState extends State<AssistiveButton>
 
     if (window == null) {
       window = Window.of(context);
-      window?.on(EventWindowDragStart, (window, data) => _onDragStart());
-      window?.on(EventWindowDragging, (window, data) {
+      window?.on(EventType.WindowDragStart, (window, data) => _onDragStart());
+      window?.on(EventType.WindowDragging, (window, data) {
         var p = data as List<dynamic>;
         _onDragUpdate(p[0], p[1]);
       });
-      window?.on(EventWindowDragEnd, (window, windowdata) => _onDragEnd());
+      window?.on(EventType.WindowDragEnd, (window, windowdata) => _onDragEnd());
     }
 
     child = GestureDetector(

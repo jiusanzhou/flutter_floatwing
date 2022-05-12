@@ -5,6 +5,38 @@ import 'package:flutter_floatwing/flutter_floatwing.dart';
 
 typedef WindowListener = dynamic Function(Window window, dynamic data);
 
+
+/// events name
+enum EventType {
+  WindowCreated,
+  WindowStarted,
+  WindowResumed,
+  WindowDestroy,
+
+  WindowDragStart,
+  WindowDragging,
+  WindowDragEnd,
+}
+
+extension _EventType on EventType {
+  static final _names = {
+    EventType.WindowCreated: "window.created",
+    EventType.WindowStarted: "window.started",
+    EventType.WindowResumed: "window.resumed",
+    EventType.WindowDestroy: "window.destroy",
+    EventType.WindowDragStart: "window.drag_start",
+    EventType.WindowDragging: "window.dragging",
+    EventType.WindowDragEnd: "window.drag_end",
+  };
+
+  static EventType? fromString(String v) {
+    EventType.values.firstWhere((e) => e.name==v);
+  }
+
+  String get name => _names[this]!;
+}
+
+
 /// Event is a common event
 class Event {
   /// id is window id
@@ -43,7 +75,9 @@ class EventManager {
     });
   }
 
-  Window? Function(Event evt)? chooseWindow;
+  // event listenders
+  // because enum from string O(n), so just use string
+  Map<String, Map<Window, List<WindowListener>>> _listeners = {};
 
   Map<String, List<Window>> _windows = {};
 
@@ -72,9 +106,6 @@ class EventManager {
     return current;
   }
 
-  // event listenders
-  Map<String, Map<Window, List<WindowListener>>> _listeners = {};
-
   List<dynamic> sink(Event evt) {
     var res = [];
     (_listeners[evt.name] ?? {}).forEach((w, cbs) {
@@ -85,8 +116,8 @@ class EventManager {
     return res;
   }
 
-  EventManager on(Window window, String name, WindowListener callback) {
-    var key = name;
+  EventManager on(Window window, EventType type, WindowListener callback) {
+    var key = type.name;
     log("[event] register listener $key for $window");
     if (_listeners[key] == null) _listeners[key] = {};
     if (_listeners[key]![window] == null) _listeners[key]![window] = [];

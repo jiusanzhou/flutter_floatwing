@@ -116,10 +116,9 @@ class Window {
 
   /// on register callback to listener
   Window on(
-    String name,
+    EventType type,
     WindowListener callback) {
-    var key = "$name";
-    _eventManager?.on(this, key, callback);
+    _eventManager?.on(this, type, callback);
     return this;
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
@@ -28,10 +29,10 @@ class _NonrmalViewState extends State<NonrmalView> {
     // context.floatwingWindow
     if (w == null) {
       w = Window.of(context);
-      w?.on(EventWindowDragStart, (window, data) {
+      w?.on(EventType.WindowDragStart, (window, data) {
         setState(() => { dragging = true });
       });
-      w?.on(EventWindowDragEnd, (window, data) {
+      w?.on(EventType.WindowDragEnd, (window, data) {
         setState(() => { dragging = false });
       });
     }

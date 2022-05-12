@@ -120,7 +120,7 @@ class _HomePageState extends State<HomePage> {
     });
 
     _windows.forEach((w) => w
-        .on(EventWindowCreated, (window, data) {
+        .on(EventType.WindowCreated, (window, data) {
           _readys[window] = true;
           setState(() {});
         })
