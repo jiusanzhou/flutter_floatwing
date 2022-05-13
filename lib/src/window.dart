@@ -79,7 +79,6 @@ class Window {
     bool start = false, // start immediately if true
     Window? window,
   }) async {
-    print("====> create child ...");
     return FloatwingPlugin().internalCreateWindow(id, config,
         start: start,
         window: window,

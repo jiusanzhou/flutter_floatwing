@@ -70,6 +70,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     _routes["/"] = (_) => HomePage(configs: _configs);
+    _routes["/assistive_pannel"] = (_) => AssistivePannel();
 
     _configs.forEach((c) => {
           if (c.route != null && _builders[c.id] != null)
@@ -180,7 +181,13 @@ class _HomePageState extends State<HomePage> {
                     w.close(force: false);
                   });
                 },
-                child: Text("Close all"))
+                child: Text("Close all")),
+
+            ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushNamed("/assistive_pannel");
+                },
+                child: Text("Debug Assistive Pannel"))
           ],
         ),
       ),

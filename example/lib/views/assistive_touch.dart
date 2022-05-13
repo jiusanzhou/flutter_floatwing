@@ -13,12 +13,12 @@ class AssistiveTouch extends StatefulWidget {
 
 void _pannelMain() {
   runApp(MaterialApp(
-    home: ((_) => _AssistivePannel()).floatwing().make(),
+    debugShowCheckedModeBanner: false,
+    home: ((_) => AssistivePannel()).floatwing().make(),
   ));
 }
 
 class _AssistiveTouchState extends State<AssistiveTouch> {
-
   /// The state of the touch state
   bool expend = false;
   bool pannelReady = false;
@@ -37,7 +37,8 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
     pannelWindow = WindowConfig(
       id: "assistive_pannel",
       callback: _pannelMain,
-      width: WindowSize.MatchParent, height: WindowSize.MatchParent,
+      width: WindowSize.MatchParent,
+      height: WindowSize.MatchParent,
       autosize: false,
     ).to();
     pannelWindow?.create();
@@ -55,7 +56,6 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
       expend = false;
       setState(() {});
     });
-
   }
 
   @override
@@ -68,9 +68,9 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
 
   void _onTap() {
     pannelWindow?.start();
-    setState(() {
-      expend = true;
-    });
+    // hide button
+    expend = true;
+    setState(() {});
   }
 }
 
@@ -138,6 +138,8 @@ class _AssistiveButtonState extends State<AssistiveButton>
   Timer? scaleTimer;
 
   Window? window;
+  late AnimationController _moveAnimationController;
+  late Animation _moveAnimation;
 
   @override
   void initState() {
@@ -171,6 +173,7 @@ class _AssistiveButtonState extends State<AssistiveButton>
     scaleTimer?.cancel();
     _scaleAnimationController.dispose();
     FocusManager.instance.removeListener(listener);
+    _moveAnimationController.dispose();
     super.dispose();
   }
 
@@ -237,8 +240,10 @@ class _AssistiveButtonState extends State<AssistiveButton>
     timer?.cancel();
   }
 
+  Offset _old = Offset.zero;
   void _onDragUpdate(int x, int y) {
-    _setOffset(Offset(x.toDouble(), y.toDouble()));
+    _old = Offset(x.toDouble(), y.toDouble());
+    _setOffset(_old);
   }
 
   void _onDragEnd() {
@@ -275,10 +280,7 @@ class _AssistiveButtonState extends State<AssistiveButton>
     }
 
     if (isDragging) {
-      setState(() {
-        this.offset = offset;
-      });
-
+      this.offset = offset;
       return;
     }
 
@@ -328,53 +330,107 @@ class _AssistiveButtonState extends State<AssistiveButton>
   // }
 }
 
-class _AssistivePannel extends StatefulWidget {
-  
-  const _AssistivePannel({
+class AssistivePannel extends StatefulWidget {
+  const AssistivePannel({
     Key? key,
   }) : super(key: key);
 
   @override
-  State<_AssistivePannel> createState() => _AssistivePannelState();
+  State<AssistivePannel> createState() => _AssistivePannelState();
 }
 
-class _AssistivePannelState extends State<_AssistivePannel> {
+class _AssistivePannelState extends State<AssistivePannel>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animationController = AnimationController(
+    duration: _duration,
+    vsync: this,
+  );
+
+  Duration _duration = Duration(milliseconds: 200);
 
   Window? window;
 
   @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
   void initState() {
     super.initState();
-
-    initAsyncState();
   }
 
-  void initAsyncState() {
-    // make sure to sync windows from service
-    FloatwingPlugin().syncWindows();
-  }
+  var screenWidth;
+  var screenHeight;
+  var size = 0.0;
+  var factor = 0.8;
 
   @override
   Widget build(BuildContext context) {
     if (window == null) {
       window = Window.of(context);
+      window?.on(EventType.WindowResumed, (window, data) {
+        // if start jsut show
+        _show = true;
+        setState(() {});
+      });
     }
+
+    if (screenWidth == null) {
+      screenWidth = MediaQuery.of(context).size.width;
+      screenHeight = MediaQuery.of(context).size.height;
+      size = screenWidth * factor;
+    }
+
     return GestureDetector(
-        onTap: _onTap,
-        child: Container(
-          // height: MediaQuery.of(context).size.height,
-          // width: MediaQuery.of(context).size.width,
-          child: Container(
-                width: 0.8 * MediaQuery.of(context).size.width,
-                height: 500,
-                color: Colors.redAccent.withOpacity(0.15),
-              )),
-        );
+      onTap: _onTap,
+      child: Container(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            // Container(color: Colors.red),
+            AnimatedPositioned(
+                bottom: _bottom,
+                height: _show ? size : 0,
+                // top: _show?0:screenHeight/2,
+                left: _show ? 0 : screenWidth / 2,
+                right: _show ? 0 : screenWidth / 2,
+                curve: Curves.easeIn,
+                duration: _duration,
+                child: FractionallySizedBox(
+                  widthFactor: factor,
+                  child: GestureDetector(
+                      onTap: () => null,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.all(Radius.circular(16)),
+                          color: Color.fromARGB(255, 25, 24, 24),
+                        ),
+                        child: Stack(
+                          children: [],
+                        ),
+                      )),
+                )),
+          ],
+        ),
+      ),
+    );
   }
 
+  bool _show = false;
+
+  double? _bottom = 200;
+
   _onTap() {
-    // close currenty window
-    window?.close();
+    _show = false;
+    setState(() {});
+    Timer(
+        _duration,
+        () => {
+              // close currenty window
+              window?.close()
+            });
   }
 }
 

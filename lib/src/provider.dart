@@ -26,11 +26,13 @@ class FloatwingProvider extends InheritedWidget {
 class FloatwingContainer extends StatefulWidget {
   final Widget? child;
   final WidgetBuilder? builder;
+  final bool debug;
 
   const FloatwingContainer({
     Key? key,
     this.child,
     this.builder,
+    this.debug = false,
   })  : assert(child != null || builder != null),
         super(key: key);
 
@@ -66,7 +68,8 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
   @override
   Widget build(BuildContext context) {
     // make sure window is ready?
-    if (_window == null) return _empty;
+    if (!widget.debug && _window == null) return _empty;
+    // in production, make sure builder when window is ready
     return Builder(builder: widget.builder ?? (_) => widget.child!)
         ._provider(_window)
         ._autosize(enabled: _autosize, onChange: _onSizeChanged)
@@ -161,8 +164,8 @@ class _MeasuredSizedState extends State<_MeasuredSized> {
 
 extension WidgetProviderExtension on Widget {
   /// Export floatwing extension function to inject for widget
-  Widget floatwing() {
-    return FloatwingContainer(child: this);
+  Widget floatwing({ bool debug = false }) {
+    return FloatwingContainer(child: this, debug: debug);
   }
 
   Widget _provider(Window? window) {
@@ -192,8 +195,8 @@ extension WidgetProviderExtension on Widget {
 }
 
 extension WidgetBuilderProviderExtension on WidgetBuilder {
-  WidgetBuilder floatwing() {
-    return (_) => FloatwingContainer(builder: this);
+  WidgetBuilder floatwing({ bool debug = false }) {
+    return (_) => FloatwingContainer(builder: this, debug: debug);
   }
 
   Widget make() {

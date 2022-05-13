@@ -151,7 +151,6 @@ class FloatwingPlugin {
     bool start = false, // start immediately if true
     Window? window,
   }) async {
-    print("===========> $isWindow");
     var w = isWindow
         ? await currentWindow?.createChildWindow(id, config,
             start: start, window: window)
