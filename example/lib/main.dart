@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import 'package:flutter_floatwing/flutter_floatwing.dart';
@@ -39,20 +41,18 @@ class _MyAppState extends State<MyApp> {
       // entry: "floatwing",
       route: "/normal",
       draggable: true,
-      // gravity: 3 | 48,
     ),
     WindowConfig(
       id: "assitive_touch",
       // entry: "floatwing",
       route: "/assitive_touch",
       draggable: true,
-      // gravity: 3 | 48,
     ),
     WindowConfig(
       id: "night",
       // entry: "floatwing",
       route: "/night",
-      width: -1, height: -1,
+      width: WindowSize.MatchParent, height: WindowSize.MatchParent,
       clickable: false,
     )
   ];

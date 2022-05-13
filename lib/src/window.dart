@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
@@ -36,7 +38,7 @@ class Window {
     if (map == null) return this;
     id = map["id"];
     pixelRadio = map["pixelRadio"] ?? 1.0;
-    system = SystemConfig.fromMap(map["system"]??{});
+    system = SystemConfig.fromMap(map["system"] ?? {});
     config = WindowConfig.fromMap(map["config"]);
     return this;
   }
@@ -66,7 +68,23 @@ class Window {
   Future<Window?> create({bool start = false}) async {
     // // create the engine first
     return await FloatwingPlugin()
-        .createWindow(this.id, this.config!, window: this);
+        .createWindow(this.id, this.config!, start: start, window: this);
+  }
+
+  /// create child window
+  /// just method shoudld only called in window engine
+  Future<Window?> createChildWindow(
+    String? id,
+    WindowConfig config, {
+    bool start = false, // start immediately if true
+    Window? window,
+  }) async {
+    print("====> create child ...");
+    return FloatwingPlugin().internalCreateWindow(id, config,
+        start: start,
+        window: window,
+        channel: _channel,
+        name: "window.create_child");
   }
 
   Future<bool?> start() async {
@@ -113,9 +131,7 @@ class Window {
   }
 
   /// on register callback to listener
-  Window on(
-    EventType type,
-    WindowListener callback) {
+  Window on(EventType type, WindowListener callback) {
     _eventManager?.on(this, type, callback);
     return this;
   }
@@ -126,7 +142,7 @@ class WindowConfig {
 
   String? entry;
   String? route;
-  int? callback; // use callback to start engine
+  Function? callback; // use callback to start engine
 
   bool? autosize;
 
@@ -167,14 +183,21 @@ class WindowConfig {
     this.focusable,
     this.immersion,
     this.visible,
-  });
+  }) : assert(
+            callback == null ||
+                PluginUtilities.getCallbackHandle(callback) != null,
+            "callback is not a static function");
 
   factory WindowConfig.fromMap(Map<dynamic, dynamic> map) {
+    var _cb;
+    if (map["callback"] != null)
+      _cb = PluginUtilities.getCallbackFromHandle(
+          CallbackHandle.fromRawHandle(map["callback"]));
     return WindowConfig(
       // id: map["id"],
       entry: map["entry"],
       route: map["route"],
-      callback: map["callback"],
+      callback: _cb, // get the callback from id
 
       autosize: map["autosize"],
 
@@ -202,7 +225,10 @@ class WindowConfig {
     // map["id"] = id;
     map["entry"] = entry;
     map["route"] = route;
-    map["callback"] = callback;
+    // find the callback id from callback function
+    map["callback"] = callback != null
+        ? PluginUtilities.getCallbackHandle(callback!)?.toRawHandle()
+        : null;
 
     map["autosize"] = autosize;
 

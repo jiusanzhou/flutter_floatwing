@@ -21,10 +21,6 @@ class FloatwingProvider extends InheritedWidget {
   bool updateShouldNotify(FloatwingProvider oldWidget) {
     return true;
   }
-
-  static T? of<T>(BuildContext context) {
-    return null;
-  }
 }
 
 class FloatwingContainer extends StatefulWidget {
@@ -56,27 +52,26 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
 
   initSyncState() async {
     if (_window == null) {
-      log("[provider] don't sync window at init, need to do at here");
+      log("[provider] have not sync window at init, need to do at here");
       await FloatwingPlugin().ensureWindow().then((w) => _window = w);
     }
     // init window from engine and save, only call this int here
     // sync a window from engine
-    _updateFromWindow();
-    _window?.on(EventType.WindowResumed, (w, _) => _updateFromWindow());
+    _changed();
+    _window?.on(EventType.WindowResumed, (w, _) => _changed());
   }
+
+  Widget _empty = Container();
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: _MeasuredSized(
-        onChange: _autosize ? _onSizeChanged : null,
-        child: FloatwingProvider(
-          child: Builder(builder: widget.builder ?? (_) => widget.child!),
-          window: _window,
-        ).ignorePointer(ignoring: _ignorePointer),
-      ),
-    );
+    // make sure window is ready?
+    if (_window == null) return _empty;
+    return Builder(builder: widget.builder ?? (_) => widget.child!)
+        ._provider(_window)
+        ._autosize(enabled: _autosize, onChange: _onSizeChanged)
+        ._material(color: Colors.transparent)
+        ._pointerless(_ignorePointer);
   }
 
   @override
@@ -86,20 +81,16 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
     // w.un("resumed").un("")
   }
 
-
-  _updateFromWindow() {
+  _changed() async {
     // clickable == !ignorePointer
     _ignorePointer = !(_window?.config?.clickable ?? true);
     _autosize = _window?.config?.autosize ?? true;
-
-    log("[provider] the view to ignore pointer: $_ignorePointer");
-
     // update the flutter ui
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   _onSizeChanged(Size size) {
-    var radio = _window?.pixelRadio ?? 0;
+    var radio = _window?.pixelRadio ?? 1;
     _window?.update(WindowConfig(
       width: (size.width * radio).toInt(),
       height: (size.height * radio).toInt(),
@@ -168,29 +159,41 @@ class _MeasuredSizedState extends State<_MeasuredSized> {
   }
 }
 
-extension _IgnorePointerExtension on Widget {
-  Widget ignorePointer({bool ignoring = false}) {
+extension WidgetProviderExtension on Widget {
+  /// Export floatwing extension function to inject for widget
+  Widget floatwing() {
+    return FloatwingContainer(child: this);
+  }
+
+  Widget _provider(Window? window) {
+    return FloatwingProvider(child: this, window: window);
+  }
+
+  Widget _pointerless([bool ignoring = false]) {
     return IgnorePointer(child: this, ignoring: ignoring);
   }
-}
 
-extension WidgetProviderExtension on Widget {
-  Widget floatwing({
-    bool ignorePointer = false,
+  Widget _material({
+    bool enabled = false,
+    Color? color,
   }) {
-    return FloatwingContainer(
-      child: this,
-    );
+    return !enabled ? this : Material(color: color, child: this);
+  }
+
+  Widget _autosize({
+    bool enabled = false,
+    void Function(Size)? onChange,
+    int delay = 0,
+  }) {
+    return !enabled
+        ? this
+        : _MeasuredSized(child: this, delay: delay, onChange: onChange);
   }
 }
 
 extension WidgetBuilderProviderExtension on WidgetBuilder {
-  WidgetBuilder floatwing({
-    bool ignorePointer = false,
-  }) {
-    return (_) => FloatwingContainer(
-          builder: this,
-        );
+  WidgetBuilder floatwing() {
+    return (_) => FloatwingContainer(builder: this);
   }
 
   Widget make() {

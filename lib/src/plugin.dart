@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_floatwing/flutter_floatwing.dart';
 import 'package:flutter_floatwing/src/utils.dart';
 import 'package:flutter_floatwing/src/window.dart';
 
@@ -33,7 +34,7 @@ class FloatwingPlugin {
   static final MethodChannel _channel = MethodChannel('$channelID/method');
 
   static final MethodChannel _bgChannel = MethodChannel('$channelID/bg_method');
-  
+
   static final BasicMessageChannel _msgChannel =
       BasicMessageChannel('$channelID/bg_message', JSONMessageCodec());
 
@@ -68,12 +69,26 @@ class FloatwingPlugin {
   /// return current window for window's engine
   Window? get currentWindow => _window;
 
+  /// i'm window engine, default is the main engine
+  /// if we sync success, we set to true.
+  bool isWindow = false;
+
   factory FloatwingPlugin() {
     return _instance;
   }
 
   FloatwingPlugin get instance {
     return _instance;
+  }
+
+  /// sync make the plugin to sync windows from services
+  Future<bool> syncWindows() async {
+    var _ws = await _channel.invokeListMethod("plugin.sync_windows");
+    _ws?.forEach((e) {
+      var w = Window.fromMap(e);
+      _windows[w.id] = w;
+    });
+    return true;
   }
 
   Future<bool> initialize() async {
@@ -129,40 +144,54 @@ class FloatwingPlugin {
     return await _channel.invokeMethod("plugin.clean_cache");
   }
 
-  // create window object
+  /// create window to create a window
   Future<Window?> createWindow(
     String? id,
     WindowConfig config, {
     bool start = false, // start immediately if true
     Window? window,
   }) async {
+    print("===========> $isWindow");
+    var w = isWindow
+        ? await currentWindow?.createChildWindow(id, config,
+            start: start, window: window)
+        : await internalCreateWindow(id, config,
+            start: start, window: window, channel: _channel);
+    if (w == null) return null;
+    // store current window for window engine
+    // for window engine use, update the current window
+    // if we use create_window first?
+    // _window = w; // we should don't use create_window first!!!
+    // store the window to cache
+    _windows[w.id] = w;
+    return w;
+  }
+
+  // create window object for main engine
+  Future<Window?> internalCreateWindow(
+    String? id,
+    WindowConfig config, {
+    bool start = false, // start immediately if true
+    Window? window,
+    required MethodChannel channel,
+    String name = "plugin.create_window",
+  }) async {
     // check permission first
     if (!await checkPermission()) {
       throw Exception("no permission to create window");
     }
+
     // store the window first
     // window.id can't be updated
     // for main engine use
     // if (window != null) _windows[window.id] = window;
-    var updates =
-        await _channel.invokeMapMethod("plugin.create_window", {
+    var updates = await channel.invokeMapMethod(name, {
       "id": id,
       "config": config.toMap(),
       "start": start,
     });
-    // create window failed
-    if (updates == null) {
-      return null;
-    }
     // if window is not created, new one
-    var w = (window ?? Window()).applyMap(updates);
-    // store current window for window engine
-    // for window engine use, update the current window
-    // if we use create_window first
-    _window = w;
-    // store the window to cache
-    _windows[w.id] = w;
-    return w;
+    return updates == null ? null : (window ?? Window()).applyMap(updates);
   }
 
   /// ensure window make sure the window object sync from android
@@ -185,8 +214,14 @@ class FloatwingPlugin {
     // means first time call sync, just create a new window
     if (_window == null) _window = Window();
     _window!.applyMap(map);
+    isWindow = true;
     return _window;
   }
 
-  static void _callback() async {}
+  /// `on` register event handlers for all windows
+  /// or we can use stream mode
+  FloatwingPlugin on(EventType type, WindowListener callback) {
+    // TODO:
+    return this;
+  }
 }

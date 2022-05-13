@@ -34,6 +34,8 @@ class FloatWindow(
         private const val TAG = "FloatWindow"
     }
 
+    var parent: FloatWindow? = null
+
     var config = cfg
 
     var key: String = "default"
@@ -152,6 +154,10 @@ class FloatWindow(
         // we need to send to man engine
         service._message.send(map)
 
+        // fire to parents
+        // TODO: what about the grant parent?
+        if(parent!=null&&parent!=this) parent?.emit(name, data)
+
         // _channel.invokeMethod("window.$name", data)
         // we need to send to man engine
         // service._channel.invokeMethod("window.$name", key)
@@ -171,41 +177,61 @@ class FloatWindow(
         return "${toMap()}"
     }
 
+    // return window from svc.windows by id
+    fun take(id: String): FloatWindow? {
+        return service.windows[id]
+    }
+
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        // TODO: move window call from service to here
         return when (call.method) {
+            // just take current engine's window
             "window.sync" -> {
                 // when flutter is ready should call this to sync the window object.
                 Log.i(TAG, "[window] window.sync from flutter side: $key")
                 result.success(toMap())
             }
+
+            // we need to support call window.* in window engine
+            // but the window engine register as window channel
+            // so we should take the id first and then get window from windows cache
+            // TODO: those code should move to service
+
+            "window.create_child" -> {
+                val id = call.argument<String>("id") ?: "default"
+                val cfg = call.argument<Map<String, *>>("config")!!
+                val start = call.argument<Boolean>("start") ?: false
+                val config = FloatWindow.Config.from(cfg)
+                Log.d(TAG, "[service] window.create_child request_id: $id")
+                return result.success(FloatwingService.createWindow(service.applicationContext, id,
+                        config, start, this))
+            }
             "window.close" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.close request_id: $id, my_id: $key")
                 val force = call.argument("force") ?: false
-                return result.success(destroy(force))
+                return result.success(take(id)?.destroy(force))
             }
             "window.destroy" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.destroy request_id: $id, my_id: $key")
-                return result.success(destroy(true))
+                return result.success(take(id)?.destroy(true))
             }
             "window.start" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.start request_id: $id, my_id: $key")
-                return result.success(start())
+                return result.success(take(id)?.start())
             }
             "window.update" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.update request_id: $id, my_id: $key")
                 val config = Config.from(call.argument<Map<String, *>>("config")!!)
-                return result.success(update(config))
+                return result.success(take(id)?.update(config))
             }
             "window.show" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.show request_id: $id, my_id: $key")
                 val visible = call.argument<Boolean>("visible") ?: true
-                return result.success(setVisible(visible))
+                return result.success(take(id)?.setVisible(visible))
             }
             else -> {
                 result.notImplemented()

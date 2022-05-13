@@ -10,6 +10,7 @@ typedef WindowListener = dynamic Function(Window window, dynamic data);
 enum EventType {
   WindowCreated,
   WindowStarted,
+  WindowPaused,
   WindowResumed,
   WindowDestroy,
 
@@ -22,6 +23,7 @@ extension _EventType on EventType {
   static final _names = {
     EventType.WindowCreated: "window.created",
     EventType.WindowStarted: "window.started",
+    EventType.WindowPaused: "window.paused",
     EventType.WindowResumed: "window.resumed",
     EventType.WindowDestroy: "window.destroy",
     EventType.WindowDragStart: "window.drag_start",

@@ -141,17 +141,14 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
       "plugin.grant_permission" -> {
         return grantPermission(result)
       }
+      // remove
       "plugin.create_window" -> {
         val id = call.argument<String>("id") ?: "default"
         val cfg = call.argument<Map<String, *>>("config")!!
         val start = call.argument<Boolean>("start") ?: false
         val config = FloatWindow.Config.from(cfg)
-        return result.success(FloatwingService.createWindow(mContext, id, config, start))
+        return result.success(FloatwingService.createWindow(mContext, id, config, start, null))
       }
-//      "plugin.start_window" -> {
-//        val id = call.argument<String>("id") ?: "default"
-//        return result.success(FloatwingService.startWindow(id))
-//      }
       "plugin.is_service_running" -> {
         return result.success(FloatwingService.isRunning(mContext))
       }
@@ -161,6 +158,9 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
       }
       "plugin.clean_cache" -> {
         return result.success(cleanCache())
+      }
+      "plugin.sync_windows" -> {
+        return result.success(FloatwingService.instance?.windows?.map { it.value.toMap() })
       }
       "window.sync" -> {
         Log.d(TAG, "[plugin] fake window.sync")

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
 class AssistiveTouch extends StatefulWidget {
@@ -12,10 +11,66 @@ class AssistiveTouch extends StatefulWidget {
   State<AssistiveTouch> createState() => _AssistiveTouchState();
 }
 
+void _pannelMain() {
+  runApp(MaterialApp(
+    home: ((_) => _AssistivePannel()).floatwing().make(),
+  ));
+}
+
 class _AssistiveTouchState extends State<AssistiveTouch> {
+
+  /// The state of the touch state
+  bool expend = false;
+  bool pannelReady = false;
+  Window? pannelWindow;
+  Window? touchWindow;
+
+  @override
+  void initState() {
+    super.initState();
+
+    initAsyncState();
+  }
+
+  void initAsyncState() async {
+    // create the pannel window
+    pannelWindow = WindowConfig(
+      id: "assistive_pannel",
+      callback: _pannelMain,
+      width: WindowSize.MatchParent, height: WindowSize.MatchParent,
+      autosize: false,
+    ).to();
+    pannelWindow?.create();
+    // we can't subscribe the events from other windows
+    // that means pannelWindow's events can't be fired to here.
+    // This is a feature, make sure window only care about events
+    // from self. If we want to communicate with the other windows,
+    // we can use the data communicatting method.
+    pannelWindow?.on(EventType.WindowCreated, (window, data) {
+      pannelReady = true;
+      setState(() {});
+    }).on(EventType.WindowPaused, (window, data) {
+      // open the assitive_touch
+      touchWindow?.start();
+      expend = false;
+      setState(() {});
+    });
+
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AssistiveButton();
+    if (touchWindow == null) {
+      touchWindow = Window.of(context);
+    }
+    return AssistiveButton(onTap: _onTap, visible: !expend);
+  }
+
+  void _onTap() {
+    pannelWindow?.start();
+    setState(() {
+      expend = true;
+    });
   }
 }
 
@@ -25,7 +80,6 @@ class AssistiveButton extends StatefulWidget {
     Key? key,
     this.child = const _DefaultChild(),
     this.visible = true,
-    this.draggable = false,
     this.shouldStickToSide = true,
     this.margin = const EdgeInsets.all(8.0),
     this.initialOffset = Offset.infinite,
@@ -38,9 +92,6 @@ class AssistiveButton extends StatefulWidget {
 
   /// Switches between showing the [child] or hiding it.
   final bool visible;
-
-  /// Whether it can be dragged.
-  final bool draggable;
 
   /// Whether it sticks to the side.
   final bool shouldStickToSide;
@@ -174,6 +225,7 @@ class _AssistiveButtonState extends State<AssistiveButton>
         isIdle = false;
       });
       _scheduleIdle();
+      widget.onTap!();
     }
   }
 
@@ -216,6 +268,7 @@ class _AssistiveButtonState extends State<AssistiveButton>
     ));
   }
 
+  /// TODO: this function should depend on the gravity to calcute the position
   void _setOffset(Offset offset, [bool shouldUpdateLargerOffset = true]) {
     if (shouldUpdateLargerOffset) {
       largerOffset = offset;
@@ -269,15 +322,16 @@ class _AssistiveButtonState extends State<AssistiveButton>
     }
     _updatePosition();
   }
+
+  // Offset _applyGravity(Offset o) {
+  //   return window?.config?.gravity.apply(o) ?? o;
+  // }
 }
 
 class _AssistivePannel extends StatefulWidget {
-  final Window? window;
-  final VoidCallback onCancel;
+  
   const _AssistivePannel({
     Key? key,
-    required this.window,
-    required this.onCancel,
   }) : super(key: key);
 
   @override
@@ -285,21 +339,42 @@ class _AssistivePannel extends StatefulWidget {
 }
 
 class _AssistivePannelState extends State<_AssistivePannel> {
+
+  Window? window;
+
+  @override
+  void initState() {
+    super.initState();
+
+    initAsyncState();
+  }
+
+  void initAsyncState() {
+    // make sure to sync windows from service
+    FloatwingPlugin().syncWindows();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (window == null) {
+      window = Window.of(context);
+    }
     return GestureDetector(
-        onTap: widget.onCancel,
+        onTap: _onTap,
         child: Container(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
-          child: Positioned(
-              top: 100,
-              child: Container(
+          // height: MediaQuery.of(context).size.height,
+          // width: MediaQuery.of(context).size.width,
+          child: Container(
                 width: 0.8 * MediaQuery.of(context).size.width,
                 height: 500,
-                color: Colors.redAccent,
+                color: Colors.redAccent.withOpacity(0.15),
               )),
-        ));
+        );
+  }
+
+  _onTap() {
+    // close currenty window
+    window?.close();
   }
 }
 

@@ -30,10 +30,10 @@ class _NonrmalViewState extends State<NonrmalView> {
     if (w == null) {
       w = Window.of(context);
       w?.on(EventType.WindowDragStart, (window, data) {
-        setState(() => { dragging = true });
+        if(mounted) setState(() => { dragging = true });
       });
       w?.on(EventType.WindowDragEnd, (window, data) {
-        setState(() => { dragging = false });
+        if(mounted) setState(() => { dragging = false });
       });
     }
 

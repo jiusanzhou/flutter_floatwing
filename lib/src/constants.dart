@@ -1,7 +1,11 @@
-/// window size
-const int WindowMatchParent = -1;
-const int WindowWrapContent = -2;
+import 'package:flutter/material.dart';
 
+/// window size
+///
+class WindowSize {
+  static const int MatchParent = -1;
+  static const int WrapContent = -2;
+}
 
 enum GravityType {
   Center,
@@ -18,7 +22,6 @@ enum GravityType {
 }
 
 extension GravityTypeConverter on GravityType {
-
   // ignore: slash_for_doc_comments
   /**
     public static final int AXIS_CLIP = 8;
@@ -50,22 +53,27 @@ extension GravityTypeConverter on GravityType {
     public static final int VERTICAL_GRAVITY_MASK = 112;
    */
 
+  // 0001 0001
   static const Center = 17;
+  // 0011 0000
   static const Top = 48;
+  // 0101 0000
   static const Bottom = 80;
+  // 0000 0011
   static const Left = 3;
+  // 0000 0101
   static const Right = 5;
 
   static final _values = {
     GravityType.Center: Center,
-    GravityType.CenterTop: Center | Top,
-    GravityType.CenterBottom: Center | Bottom,
-    GravityType.LeftTop: Left | Top,
-    GravityType.LeftCenter: Left | Center,
-    GravityType.LeftBottom: Left | Bottom,
-    GravityType.RightTop: Right | Top,
-    GravityType.RightCenter: Right | Center,
-    GravityType.RightBottom: Right | Bottom,
+    GravityType.CenterTop: Top | Center,
+    GravityType.CenterBottom: Bottom | Center,
+    GravityType.LeftTop: Top | Left,
+    GravityType.LeftCenter: Center | Left,
+    GravityType.LeftBottom: Bottom | Left,
+    GravityType.RightTop: Top | Right,
+    GravityType.RightCenter: Center | Right,
+    GravityType.RightBottom: Bottom | Right,
   };
 
   int? toInt() {
@@ -74,7 +82,39 @@ extension GravityTypeConverter on GravityType {
 
   GravityType? fromInt(int? v) {
     if (v == null) return null;
-    var r = _values.keys.firstWhere((e) => _values[e] == v, orElse: () => GravityType.Unknown);
+    var r = _values.keys
+        .firstWhere((e) => _values[e] == v, orElse: () => GravityType.Unknown);
     return r == GravityType.Unknown ? null : r;
+  }
+
+  /// convert offset in topleft to others
+  Offset apply(
+    Offset o, {
+    required double width,
+    required double height,
+  }) {
+    var v = this.toInt();
+    if (v==null) return o;
+
+    var dx = o.dx;
+    var dy = o.dy;
+
+    var halfWidth = width / 2;
+    var halfHeight = height / 2;
+
+    // calcute the x: & 0000 1111 = 15
+    // 3 1 5 => -1 0 1 => 0 1 2
+    // dx += ((v&15) / 2) * halfWidth;
+    // if (v&15 == 1) {
+    //   dx += halfWidth;
+    // } else if (v&15 == 2) {
+    //   dx += width;
+    // }
+
+    // // calcute the y: & 1111 0000 = 240
+    // // 48 16 80 => 0 1 2
+    // dy += ((v&240) / 2) * halfHeight;
+
+    return Offset(dx, dy);
   }
 }
