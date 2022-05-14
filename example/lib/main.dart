@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -13,18 +14,14 @@ void main() {
 
 @pragma("vm:entry-point")
 void floatwing() {
-  // only need this when you use main as window engine's entry point
-  FloatwingPlugin().ensureWindow();
-
-  runApp(MaterialApp(
-    home: FloatwingContainer(
-      builder: ((_) => NonrmalView()).floatwing(),
-    ),
-  ));
+  runApp(((_) => NonrmalView()).floatwing().make());
 }
 
 void floatwing2(Window w) {
   runApp(MaterialApp(
+    // floatwing on widget can't use Window.of(context)
+    // to access window instance
+    // should use FloatwingPlugin().currentWindow
     home: NonrmalView().floatwing(),
   ));
 }
@@ -40,7 +37,6 @@ class _MyAppState extends State<MyApp> {
       id: "normal",
       // entry: "floatwing",
       route: "/normal",
-      draggable: true,
     ),
     WindowConfig(
       id: "assitive_touch",
@@ -70,11 +66,10 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     _routes["/"] = (_) => HomePage(configs: _configs);
-    _routes["/assistive_pannel"] = (_) => AssistivePannel();
 
     _configs.forEach((c) => {
           if (c.route != null && _builders[c.id] != null)
-            {_routes[c.route!] = _builders[c.id]!.floatwing()}
+            {_routes[c.route!] = _builders[c.id]!.floatwing(debug: true)}
         });
   }
 
@@ -120,18 +115,19 @@ class _HomePageState extends State<HomePage> {
         });
     });
 
-    _windows.forEach((w) => w
-        .on(EventType.WindowCreated, (window, data) {
+    _windows.forEach((w) {
+      var _w = FloatwingPlugin().windows[w.id];
+      if (null != _w) {
+        // replace w with _w
+        _readys[w] = true;
+        return;
+      }
+      w.on(EventType.WindowCreated, (window, data) {
           _readys[window] = true;
           setState(() {});
         })
-        .create()
-        .then((_) {
-          if (_!=null) {
-            _readys[w] = true;
-            setState(() {});
-          }
-        }));
+        .create();
+    });
   }
 
   @override
@@ -140,56 +136,53 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Floatwing example app'),
       ),
-      body: Center(
-        child: Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 5,
-          children: [
-            ElevatedButton(
-                onPressed: () async {
-                  var r = await FloatwingPlugin().checkPermission();
-                  if (!r) {
-                    FloatwingPlugin().openPermissionSetting();
-                    print("no permission, need to grant");
-                  }
-                },
-                child: Text("Check permission")),
-            ..._windows
-                .map((w) => Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        ElevatedButton(
-                          onPressed: () async {
-                            Navigator.pushNamed(context, w.config!.route!);
-                          },
-                          child: Text("Debug ${w.id}"),
-                        ),
-                        ElevatedButton(
-                          onPressed: _readys[w] != true
-                              ? null
-                              : () async {
-                                  w.start();
-                                },
-                          child: Text("Open ${w.id}"),
-                        ),
-                      ],
-                    ))
-                .toList(),
-            ElevatedButton(
-                onPressed: () {
-                  FloatwingPlugin().windows.values.forEach((w) {
-                    w.close(force: false);
-                  });
-                },
-                child: Text("Close all")),
+      body: ListView(
+        children: _windows.map((e) => _item(e)).toList(),
+      ),
+    );
+  }
 
-            ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pushNamed("/assistive_pannel");
-                },
-                child: Text("Debug Assistive Pannel"))
+  _debug(Window w) {
+    Navigator.of(context).pushNamed(w.config!.route!);
+  }
+
+  Widget _item(Window w) {
+    return Card(
+      margin: EdgeInsets.all(10),
+      child: Padding(
+        padding: EdgeInsets.all(10),
+        child: Column(
+          children: [
+            Text(w.id, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: Color.fromARGB(255, 214, 213, 213),
+                borderRadius: BorderRadius.all(Radius.circular(4))
+              ),
+              child: Text(w.config?.toString()??""),
+            ),
+            SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: (_readys[w] == true) ? () => w.start() : null,
+                  child: Text("Open"),
+                ),
+                TextButton(
+                  onPressed: w.config?.route != null ? () => _debug(w) : null,
+                  child: Text("Debug")),
+                TextButton(
+                  onPressed: (_readys[w] == true) ? () => w.close() : null,
+                  child: Text("Close", style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            )
           ],
-        ),
+        )
       ),
     );
   }

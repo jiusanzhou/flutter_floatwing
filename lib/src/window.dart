@@ -12,10 +12,9 @@ class Window {
   double? pixelRadio;
   SystemConfig? system;
 
-  EventManager? _eventManager;
+  late EventManager _eventManager;
 
   Window({this.id = "default", this.config}) {
-    // this will cause the channel called setHandler multi times
     _eventManager = EventManager(_message, window: this);
   }
 
@@ -62,6 +61,10 @@ class Window {
     return await _channel.invokeMethod("window.close", {
       "id": id,
       "force": force,
+    }).then((v) {
+      // remove the window from plugin
+      FloatwingPlugin().windows.remove(id);
+      return v;
     });
   }
 
@@ -108,16 +111,20 @@ class Window {
       "config": cfg.toMap(),
     });
     // var updates = await FloatwingPlugin().updateWindow(id, cfg);
+    // update the plugin store
     applyMap(updates);
     return true;
   }
 
   Future<bool?> show({bool visible = true}) async {
-    // return FloatwingPlugin().showWindow(id, v);
     config?.visible = visible;
     return await _channel.invokeMethod("window.show", {
       "id": id,
       "visible": visible,
+    }).then((v) {
+      // update the plugin store
+      if (v) FloatwingPlugin().windows[id]?.config?.visible = visible;
+      return v;
     });
   }
 
@@ -133,6 +140,14 @@ class Window {
   Window on(EventType type, WindowListener callback) {
     _eventManager?.on(this, type, callback);
     return this;
+  }
+
+  Map<String, dynamic> toMap() {
+    var map = Map<String, dynamic>();
+    map["id"] = id;
+    map["pixelRadio"] = pixelRadio;
+    map["config"] = config?.toMap();
+    return map;
   }
 }
 

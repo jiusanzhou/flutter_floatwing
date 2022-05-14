@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
 class AssistiveTouch extends StatefulWidget {
@@ -12,10 +13,7 @@ class AssistiveTouch extends StatefulWidget {
 }
 
 void _pannelMain() {
-  runApp(MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: ((_) => AssistivePannel()).floatwing().make(),
-  ));
+  runApp(((_) => AssistivePannel()).floatwing(app: true).make());
 }
 
 class _AssistiveTouchState extends State<AssistiveTouch> {
@@ -30,6 +28,14 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
     super.initState();
 
     initAsyncState();
+
+    SchedulerBinding.instance?.addPostFrameCallback((_) {
+      touchWindow = Window.of(context);
+      touchWindow?.on(EventType.WindowStarted, (window, data) {
+        expend = false;
+        setState(() {});
+      });
+    });
   }
 
   void initAsyncState() async {
@@ -41,6 +47,7 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
       height: WindowSize.MatchParent,
       autosize: false,
     ).to();
+
     pannelWindow?.create();
     // we can't subscribe the events from other windows
     // that means pannelWindow's events can't be fired to here.
@@ -53,20 +60,16 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
     }).on(EventType.WindowPaused, (window, data) {
       // open the assitive_touch
       touchWindow?.start();
-      expend = false;
-      setState(() {});
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (touchWindow == null) {
-      touchWindow = Window.of(context);
-    }
     return AssistiveButton(onTap: _onTap, visible: !expend);
   }
 
   void _onTap() {
+    print("=======> tap ..");
     pannelWindow?.start();
     // hide button
     expend = true;
@@ -138,8 +141,6 @@ class _AssistiveButtonState extends State<AssistiveButton>
   Timer? scaleTimer;
 
   Window? window;
-  late AnimationController _moveAnimationController;
-  late Animation _moveAnimation;
 
   @override
   void initState() {
@@ -173,7 +174,6 @@ class _AssistiveButtonState extends State<AssistiveButton>
     scaleTimer?.cancel();
     _scaleAnimationController.dispose();
     FocusManager.instance.removeListener(listener);
-    _moveAnimationController.dispose();
     super.dispose();
   }
 
@@ -359,6 +359,16 @@ class _AssistivePannelState extends State<AssistivePannel>
   @override
   void initState() {
     super.initState();
+
+    SchedulerBinding.instance?.addPostFrameCallback((_) {
+      window = Window.of(context);
+      window?.on(EventType.WindowStarted, (window, data) {
+        // if start just show
+        print("pannel just start ...");
+        _show = true;
+        setState(() {});
+      });
+    });
   }
 
   var screenWidth;
@@ -368,15 +378,6 @@ class _AssistivePannelState extends State<AssistivePannel>
 
   @override
   Widget build(BuildContext context) {
-    if (window == null) {
-      window = Window.of(context);
-      window?.on(EventType.WindowResumed, (window, data) {
-        // if start jsut show
-        _show = true;
-        setState(() {});
-      });
-    }
-
     if (screenWidth == null) {
       screenWidth = MediaQuery.of(context).size.width;
       screenHeight = MediaQuery.of(context).size.height;
@@ -425,12 +426,7 @@ class _AssistivePannelState extends State<AssistivePannel>
   _onTap() {
     _show = false;
     setState(() {});
-    Timer(
-        _duration,
-        () => {
-              // close currenty window
-              window?.close()
-            });
+    Timer(_duration, () => window?.close());
   }
 }
 

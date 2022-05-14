@@ -79,7 +79,9 @@ class EventManager {
 
   // event listenders
   // because enum from string O(n), so just use string
-  Map<String, Map<Window, List<WindowListener>>> _listeners = {};
+  // Map<String, Map<Window, List<WindowListener>>> _listeners = {};
+  // w.id -> type -> w -> [cb]
+  Map<String, Map<String, Map<Window, List<WindowListener>>>> _listeners = {};
 
   Map<String, List<Window>> _windows = {};
 
@@ -110,7 +112,11 @@ class EventManager {
 
   List<dynamic> sink(Event evt) {
     var res = [];
-    (_listeners[evt.name] ?? {}).forEach((w, cbs) {
+    // w.id -> type -> w -> [cb]
+
+    // get windows
+    var ws = (_listeners[evt.id] ?? {})[evt.name] ?? {};
+    ws.forEach((w, cbs) {
       (cbs).forEach((c) {
         res.add(c(w, evt.data));
       });
@@ -121,10 +127,12 @@ class EventManager {
   EventManager on(Window window, EventType type, WindowListener callback) {
     var key = type.name;
     log("[event] register listener $key for $window");
-    if (_listeners[key] == null) _listeners[key] = {};
-    if (_listeners[key]![window] == null) _listeners[key]![window] = [];
-    if (!_listeners[key]![window]!.contains(callback))
-      _listeners[key]![window]!.add(callback);
+    // w.id -> w -> type -> [cb]
+    if (_listeners[window.id] == null) _listeners[window.id] = {};
+    if (_listeners[window.id]![key] == null) _listeners[window.id]![key] = {};
+    if (_listeners[window.id]![key]![window] == null) _listeners[window.id]![key]![window] = [];
+    if (!_listeners[window.id]![key]![window]!.contains(callback))
+      _listeners[window.id]![key]![window]!.add(callback);
     return this;
   }
 

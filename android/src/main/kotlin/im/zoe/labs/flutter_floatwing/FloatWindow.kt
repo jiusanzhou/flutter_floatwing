@@ -144,6 +144,11 @@ class FloatWindow(
         return true
     }
 
+    fun shareData(id: String, data: Any?): Any? {
+        // invoke the method channel
+        return _channel.invokeMethod("data.share", data)
+    }
+
     fun emit(name: String, data: Any? = null) {
         // Log.i(TAG, "[window] emit event: Window[$key] $name ")
         val map = HashMap<String, Any?>()
@@ -233,6 +238,19 @@ class FloatWindow(
                 val visible = call.argument<Boolean>("visible") ?: true
                 return result.success(take(id)?.setVisible(visible))
             }
+            "data.share" -> {
+                // communicate with other window, only 1 - 1 with id
+                val id = call.argument<String?>("id")?:"<unset>"
+                val targetId = call.argument<String?>("target")!!
+                val data = call.argument<Any?>("data")
+                Log.d(TAG, "share data from $id with $targetId: $data")
+                val target = service.windows[targetId];
+                if (target == null) {
+                    result.error("not found", "target window $targetId not exits", null);
+                    return
+                }
+                return result.success(target.shareData(id, data))
+            }
             else -> {
                 result.notImplemented()
             }
@@ -240,7 +258,7 @@ class FloatWindow(
     }
 
     override fun onMessage(msg: Any?, reply: BasicMessageChannel.Reply<Any?>) {
-
+        // stream message
     }
 
     // window is dragging

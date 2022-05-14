@@ -27,12 +27,14 @@ class FloatwingContainer extends StatefulWidget {
   final Widget? child;
   final WidgetBuilder? builder;
   final bool debug;
+  final bool app;
 
   const FloatwingContainer({
     Key? key,
     this.child,
     this.builder,
     this.debug = false,
+    this.app = false,
   })  : assert(child != null || builder != null),
         super(key: key);
 
@@ -74,7 +76,8 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
         ._provider(_window)
         ._autosize(enabled: _autosize, onChange: _onSizeChanged)
         ._material(color: Colors.transparent)
-        ._pointerless(_ignorePointer);
+        ._pointerless(_ignorePointer)
+        ._app(enabled: widget.app, debug: widget.debug);
   }
 
   @override
@@ -162,14 +165,128 @@ class _MeasuredSizedState extends State<_MeasuredSized> {
   }
 }
 
+
+typedef DragCallback = void Function(Offset offset);
+
+class _DragAnchor extends StatefulWidget {
+  final Widget child;
+  final bool horizontal;
+  final bool vertical;
+
+  final DragCallback? onDragStart;
+  final DragCallback? onDragUpdate;
+  final DragCallback? onDragEnd;
+
+  const _DragAnchor({
+    Key? key,
+    required this.child,
+
+    this.horizontal = true,
+    this.vertical = true,
+
+    this.onDragStart,
+    this.onDragUpdate,
+    this.onDragEnd,
+  }) : super(key: key);
+
+  @override
+  State<_DragAnchor> createState() => _DragAnchorState();
+}
+
+class _DragAnchorState extends State<_DragAnchor> {
+
+  @override
+  Widget build(BuildContext context) {
+    // return Draggable();
+    return GestureDetector(
+      onPanDown: (v) {
+        print("=======> down $v");
+      },
+      onPanUpdate: (v) {
+        print("======> move $v");
+
+      },
+      onPanEnd: (v) {
+        print("======> up $v");
+        
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _ResizeAnchor extends StatefulWidget {
+  final Widget child;
+
+  final bool horizontal;
+  final bool vertical;
+
+  const _ResizeAnchor({
+    Key? key,
+    required this.child,
+
+    this.horizontal = true,
+    this.vertical = true,
+    
+  }) : super(key: key);
+
+  @override
+  State<_ResizeAnchor> createState() => __ResizeAnchorState();
+}
+
+class __ResizeAnchorState extends State<_ResizeAnchor> {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onScaleStart: (v) {
+        print("=======> scale start $v");
+      },
+      onScaleUpdate: (v) {
+        print("=======> scale update $v");
+      },
+      onScaleEnd: (v) {
+        print("=======> scale end $v");
+      },
+      child: widget.child,
+    );
+  }
+}
+
 extension WidgetProviderExtension on Widget {
-  /// Export floatwing extension function to inject for widget
-  Widget floatwing({ bool debug = false }) {
-    return FloatwingContainer(child: this, debug: debug);
+  /// Export floatwing extension function to inject for root widget
+  Widget floatwing({
+    bool debug = false,
+    bool app = false,
+  }) {
+    return FloatwingContainer(child: this, debug: debug, app: app);
+  }
+
+  /// Export draggable extension function to inject for child widget
+  Widget draggable({
+    bool enabled = true,
+  }) {
+    return enabled?_DragAnchor(child: this):this;
+  }
+
+  /// Export resizable extension function to inject for child
+  Widget resizable({
+    bool enabled = true,
+  }) {
+    return enabled?_ResizeAnchor(child: this):this;
   }
 
   Widget _provider(Window? window) {
     return FloatwingProvider(child: this, window: window);
+  }
+
+  Widget _autosize({
+    bool enabled = false,
+    void Function(Size)? onChange,
+    int delay = 0,
+  }) {
+    return !enabled
+        ? this
+        : _MeasuredSized(child: this, delay: delay, onChange: onChange);
   }
 
   Widget _pointerless([bool ignoring = false]) {
@@ -183,20 +300,24 @@ extension WidgetProviderExtension on Widget {
     return !enabled ? this : Material(color: color, child: this);
   }
 
-  Widget _autosize({
+  Widget _app({
     bool enabled = false,
-    void Function(Size)? onChange,
-    int delay = 0,
+    bool debug = false,
   }) {
-    return !enabled
-        ? this
-        : _MeasuredSized(child: this, delay: delay, onChange: onChange);
+    return !enabled ? this : MaterialApp(debugShowCheckedModeBanner: debug, home: this);
   }
 }
 
 extension WidgetBuilderProviderExtension on WidgetBuilder {
-  WidgetBuilder floatwing({ bool debug = false }) {
-    return (_) => FloatwingContainer(builder: this, debug: debug);
+  WidgetBuilder floatwing({
+    bool debug = false,
+    bool app = false,
+  }) {
+    return (_) => FloatwingContainer(
+      builder: this,
+      debug: debug,
+      app: app,
+    );
   }
 
   Widget make() {

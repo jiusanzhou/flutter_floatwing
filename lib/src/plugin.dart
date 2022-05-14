@@ -71,7 +71,8 @@ class FloatwingPlugin {
 
   /// i'm window engine, default is the main engine
   /// if we sync success, we set to true.
-  bool isWindow = false;
+  bool get isWindow => _isWindow;
+  bool _isWindow = false;
 
   factory FloatwingPlugin() {
     return _instance;
@@ -213,7 +214,7 @@ class FloatwingPlugin {
     // means first time call sync, just create a new window
     if (_window == null) _window = Window();
     _window!.applyMap(map);
-    isWindow = true;
+    _isWindow = true;
     return _window;
   }
 
