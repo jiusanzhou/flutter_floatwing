@@ -55,6 +55,8 @@ class _FloatwingContainerState extends State<FloatwingContainer> {
   }
 
   initSyncState() async {
+    // send started message to service
+    // this make sure ui already
     if (_window == null) {
       log("[provider] have not sync window at init, need to do at here");
       await FloatwingPlugin().ensureWindow().then((w) => _window = w);
@@ -269,11 +271,11 @@ extension WidgetProviderExtension on Widget {
   }
 
   /// Export resizable extension function to inject for child
-  Widget resizable({
-    bool enabled = true,
-  }) {
-    return enabled?_ResizeAnchor(child: this):this;
-  }
+  // Widget resizable({
+  //   bool enabled = true,
+  // }) {
+  //   return enabled?_ResizeAnchor(child: this):this;
+  // }
 
   Widget _provider(Window? window) {
     return FloatwingProvider(child: this, window: window);

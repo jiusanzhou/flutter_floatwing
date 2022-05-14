@@ -37,6 +37,8 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
     lateinit var _channel: MethodChannel
     lateinit var _message: BasicMessageChannel<Any?>
 
+    var subscribedEvents: HashMap<String, Boolean> = HashMap()
+
     var pixelRadio = 2.0
     var systemConfig = emptyMap<String, Any?>()
 
@@ -166,6 +168,19 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             "window.sync" -> {
                 Log.d(TAG, "[service] fake window.sync")
                 return result.success(null)
+            }
+            "data.share" -> {
+                // communicate with other window, only 1 - 1 with id
+                val args = call.arguments as Map<*, *>
+                val targetId = call.argument<String?>("target")
+                Log.d(TAG, "[service] share data from <plugin> with $targetId: $args")
+                if (targetId == null) {
+                    Log.d(TAG, "[service] can't share data with self")
+                    return result.error("no allow", "share data from plugin to plugin", "")
+                }
+                val target = windows[targetId]
+                    ?: return result.error("not found", "target window $targetId not exits", "");
+                return target.shareData(args, result=result)
             }
             else -> {
                 Log.d(TAG, "[service] unknown method ${call.method}")
@@ -326,14 +341,6 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
 
     private fun String.flutterKey(): String {
         return FLUTTER_ENGINE_KEY + this
-    }
-
-    private fun emit(name: String, data: Any? = null) {
-        // Log.i(TAG, "[window] emit event: Window[$key] $name ")
-        val map = HashMap<String, Any?>()
-        map["name"] = "service.$name"
-        map["data"] = data
-        _message.send(map)
     }
 
     companion object {

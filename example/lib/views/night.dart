@@ -1,7 +1,4 @@
-
-
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
 class NightView extends StatefulWidget {
@@ -22,23 +19,11 @@ class _NightViewState extends State<NightView> {
 
   Window? w;
 
-  var _show = false;
-  var _duration = Duration(milliseconds: 200);
-
-  _ensure() {
-    if (w != null) return;
-    w = Window.of(context);
-    w?.on(EventType.WindowStarted, (window, data) {
-      _show = true;
-      setState(() {});
-    });
-  }
+  var _show = true;
 
   @override
   Widget build(BuildContext context) {
-    _ensure();
-    return AnimatedContainer(
-      duration: _duration,
+    return Container(
       height: _show?MediaQuery.of(context).size.height:0,
       width: _show?MediaQuery.of(context).size.width:0,
       color: color,

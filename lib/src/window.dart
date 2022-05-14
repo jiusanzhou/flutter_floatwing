@@ -5,17 +5,32 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
+typedef OnDataHanlder = Future<dynamic> Function(String? source, String? name, dynamic data);
 class Window {
   String id = "default";
   WindowConfig? config;
 
   double? pixelRadio;
   SystemConfig? system;
+  OnDataHanlder? _onDataHandler;
 
   late EventManager _eventManager;
 
   Window({this.id = "default", this.config}) {
     _eventManager = EventManager(_message, window: this);
+
+    // share data use the call
+    _channel.setMethodCallHandler((call) {
+      switch(call.method) {
+        case "data.share": {
+          var map = call.arguments as Map<dynamic, dynamic>;
+          // source, name, data
+          // if not provided, should not call this
+          return _onDataHandler?.call(map["source"], map["name"], map["data"])??Future.value(null);
+        }
+      }
+      return Future.value(null);
+    });
   }
 
   static final MethodChannel _channel =
@@ -128,6 +143,30 @@ class Window {
     });
   }
 
+  /// share data with current window
+  /// send data use current window id as target id
+  /// and get value return
+  Future<dynamic> share(dynamic data, {
+    String name = "default",
+  }) async {
+    var map = {};
+    map["target"] = id;
+    map["data"] = data;
+    map["name"] = name;
+    // make sure data is serialized
+    return await _channel.invokeMethod("data.share", map);
+  }
+
+  /// on data to receive data from other shared
+  /// maybe same like event handler
+  /// but one window in engine can only have one data handler
+  /// to make sure data not be comsumed multiple times.
+  Window onData(OnDataHanlder handler) {
+    assert(_onDataHandler==null, "onData can only called once");
+    _onDataHandler = handler;
+    return this;
+  } 
+
   // sync window object from android service
   // only window engine call this
   // if we manage other windows in some window engine
@@ -138,7 +177,7 @@ class Window {
 
   /// on register callback to listener
   Window on(EventType type, WindowListener callback) {
-    _eventManager?.on(this, type, callback);
+    _eventManager.on(this, type, callback);
     return this;
   }
 

@@ -32,6 +32,7 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
     SchedulerBinding.instance?.addPostFrameCallback((_) {
       touchWindow = Window.of(context);
       touchWindow?.on(EventType.WindowStarted, (window, data) {
+        print("touch window start ...");
         expend = false;
         setState(() {});
       });
@@ -65,15 +66,21 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
 
   @override
   Widget build(BuildContext context) {
-    return AssistiveButton(onTap: _onTap, visible: !expend);
+    return AssistiveButton(onTap: _onTap);
   }
 
   void _onTap() {
-    print("=======> tap ..");
+    var w = Window.of(context);
+    // send the postion to pannel window
+    var x = w?.config?.x??0 / (w?.pixelRadio??1);
+    var y = w?.config?.y??0 / (w?.pixelRadio??1);
+    pannelWindow?.share([x, y]);
+    // send touchWindow postion to pannel window
     pannelWindow?.start();
-    // hide button
-    expend = true;
-    setState(() {});
+    setState(() {
+      // hide button
+      expend = true;
+    });
   }
 }
 
@@ -365,24 +372,45 @@ class _AssistivePannelState extends State<AssistivePannel>
       window?.on(EventType.WindowStarted, (window, data) {
         // if start just show
         print("pannel just start ...");
-        _show = true;
-        setState(() {});
+        setState(() {
+          _show = true;
+        });
+      }).onData((source, name, data) async {
+        int x = data[0];
+        int y = data[1];
+        _updatePostion(x, y);
+        return;
       });
     });
   }
 
-  var screenWidth;
-  var screenHeight;
-  var size = 0.0;
+  double? _left;
+  double? _right;
+  double? _top;
+  bool _isLeft = false;
+  _updatePostion(int x, int y) {
+    _isLeft = x < 50;
+    if (y <= size) {
+      _top = fixed;
+    } else if (y >= screenHeight - size) {
+      _top = screenHeight - size - fixed;
+    } else {
+      _top = y - size / 2;
+    }
+  }
+
+  var fixed = 100.0;
   var factor = 0.8;
+
+  double screenWidth = 0.0;
+  double screenHeight = 0.0;
+  double size = 0.0;
 
   @override
   Widget build(BuildContext context) {
-    if (screenWidth == null) {
-      screenWidth = MediaQuery.of(context).size.width;
-      screenHeight = MediaQuery.of(context).size.height;
-      size = screenWidth * factor;
-    }
+    screenWidth = MediaQuery.of(context).size.width;
+    screenHeight = MediaQuery.of(context).size.height;
+    size = screenWidth * factor;
 
     return GestureDetector(
       onTap: _onTap,
@@ -394,9 +422,9 @@ class _AssistivePannelState extends State<AssistivePannel>
             AnimatedPositioned(
                 bottom: _bottom,
                 height: _show ? size : 0,
-                // top: _show?0:screenHeight/2,
                 left: _show ? 0 : screenWidth / 2,
                 right: _show ? 0 : screenWidth / 2,
+
                 curve: Curves.easeIn,
                 duration: _duration,
                 child: FractionallySizedBox(
@@ -424,8 +452,9 @@ class _AssistivePannelState extends State<AssistivePannel>
   double? _bottom = 200;
 
   _onTap() {
-    _show = false;
-    setState(() {});
+    setState(() {
+      _show = false;
+    });
     Timer(_duration, () => window?.close());
   }
 }

@@ -30,10 +30,6 @@ class FloatWindow(
     cfg: Config): View.OnTouchListener, MethodChannel.MethodCallHandler,
     BasicMessageChannel.MessageHandler<Any?> {
 
-    companion object {
-        private const val TAG = "FloatWindow"
-    }
-
     var parent: FloatWindow? = null
 
     var config = cfg
@@ -44,6 +40,8 @@ class FloatWindow(
     var engine = eng
 
     var wm = wmr
+
+    var subscribedEvents: HashMap<String, Boolean> = HashMap()
 
     var view: FlutterView = FlutterView(context, FlutterTextureView(context))
 
@@ -144,24 +142,39 @@ class FloatWindow(
         return true
     }
 
-    fun shareData(id: String, data: Any?): Any? {
-        // invoke the method channel
-        return _channel.invokeMethod("data.share", data)
+    fun shareData(data: Map<*, *>, source: String? = null, result: MethodChannel.Result? = null) {
+        shareData(_channel, data, source, result)
     }
 
-    fun emit(name: String, data: Any? = null) {
-        // Log.i(TAG, "[window] emit event: Window[$key] $name ")
+    fun simpleEmit(msgChannel: BasicMessageChannel<Any?>, name: String, data: Any?=null) {
         val map = HashMap<String, Any?>()
-        map["name"] = "window.$name"
+        map["name"] = name
         map["id"] = key // this is special for main engine
         map["data"] = data
-        _message.send(map)
-        // we need to send to man engine
-        service._message.send(map)
+        msgChannel.send(map)
+    }
 
-        // fire to parents
-        // TODO: what about the grant parent?
-        if(parent!=null&&parent!=this) parent?.emit(name, data)
+    fun emit(name: String, data: Any? = null, prefix: String?="window", pluginNeed: Boolean = true) {
+        val evtName = "$prefix.$name"
+        // Log.i(TAG, "[window] emit event: Window[$key] $name ")
+
+        // check if need to send to my self
+        if (true||subscribedEvents.containsKey(name)||subscribedEvents.containsKey("*")) {
+            // emit to window engine
+            simpleEmit(_message, evtName, data)
+        }
+
+        // plugin
+        // check if we need to fire to plugin
+        if (pluginNeed&&(true||service.subscribedEvents.containsKey("*")||service.subscribedEvents.containsKey(evtName))) {
+            simpleEmit(service._message, evtName, data)
+        }
+
+        // emit parent engine
+        // if fire to parent need have no need to fire to service again
+        if(parent!=null&&parent!=this) {
+            parent!!.simpleEmit(parent!!._message, evtName, data)
+        }
 
         // _channel.invokeMethod("window.$name", data)
         // we need to send to man engine
@@ -238,18 +251,29 @@ class FloatWindow(
                 val visible = call.argument<Boolean>("visible") ?: true
                 return result.success(take(id)?.setVisible(visible))
             }
+            "window.lifecycle" -> {
+
+            }
+            "event.subscribe" -> {
+                val id = call.argument<String?>("id")?:"<unset>"
+
+            }
             "data.share" -> {
                 // communicate with other window, only 1 - 1 with id
-                val id = call.argument<String?>("id")?:"<unset>"
-                val targetId = call.argument<String?>("target")!!
-                val data = call.argument<Any?>("data")
-                Log.d(TAG, "share data from $id with $targetId: $data")
-                val target = service.windows[targetId];
-                if (target == null) {
-                    result.error("not found", "target window $targetId not exits", null);
-                    return
+                val args = call.arguments as Map<*, *>
+                val targetId = call.argument<String?>("target")
+                Log.d(TAG, "[window] share data from $key with $targetId: $args")
+                if (targetId == null) {
+                    Log.d(TAG, "[window] share data with plugin")
+                    return result.success(shareData(service._channel, args, source=key, result=result))
                 }
-                return result.success(target.shareData(id, data))
+                if (targetId == key) {
+                    Log.d(TAG, "[window] can't share data with self")
+                    return result.error("no allow", "share data from $key to $targetId", "")
+                }
+                val target = service.windows[targetId]
+                    ?: return result.error("not found", "target window $targetId not exits", "");
+                return target.shareData(args, source=key, result=result)
             }
             else -> {
                 result.notImplemented()
@@ -259,6 +283,22 @@ class FloatWindow(
 
     override fun onMessage(msg: Any?, reply: BasicMessageChannel.Reply<Any?>) {
         // stream message
+    }
+
+    companion object {
+        private const val TAG = "FloatWindow"
+
+        fun shareData(channel: MethodChannel, data: Map<*, *>, source: String? = null,
+                      result: MethodChannel.Result? = null): Any? {
+            // id is the data comes from
+            // invoke the method channel
+            val map = HashMap<String, Any?>()
+            map["source"] = source
+            data.forEach { map[it.key as String] = it.value }
+            channel.invokeMethod("data.share", map, result)
+            // how to get data back
+            return null
+        }
     }
 
     // window is dragging

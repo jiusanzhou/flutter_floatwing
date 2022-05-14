@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
@@ -14,7 +11,7 @@ class NonrmalView extends StatefulWidget {
 
 class _NonrmalViewState extends State<NonrmalView> {
   bool _expend = false;
-  double _size = 0;
+  double _size = 100;
 
   @override
   void initState() {
@@ -27,7 +24,6 @@ class _NonrmalViewState extends State<NonrmalView> {
       }).on(EventType.WindowDragEnd, (window, data) {
         if (mounted) setState(() => {dragging = false});
       });
-      _size = 0.5 * (w?.system?.screenWidth ?? 0);
     });
   }
 
@@ -36,7 +32,6 @@ class _NonrmalViewState extends State<NonrmalView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_size == 0) _size = 0.5 * (w?.system?.screenWidth ?? 0);
     return Center(
       child: Container(
         width: _size,
@@ -57,7 +52,7 @@ class _NonrmalViewState extends State<NonrmalView> {
                     .draggable())
           ],
         )),
-      ).resizable(),
+      ),
     );
   }
 }

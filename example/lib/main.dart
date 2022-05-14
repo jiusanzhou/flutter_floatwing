@@ -37,6 +37,7 @@ class _MyAppState extends State<MyApp> {
       id: "normal",
       // entry: "floatwing",
       route: "/normal",
+      immersion: true,
     ),
     WindowConfig(
       id: "assitive_touch",
@@ -69,7 +70,7 @@ class _MyAppState extends State<MyApp> {
 
     _configs.forEach((c) => {
           if (c.route != null && _builders[c.id] != null)
-            {_routes[c.route!] = _builders[c.id]!.floatwing(debug: true)}
+            {_routes[c.route!] = _builders[c.id]!.floatwing(debug: false)}
         });
   }
 
@@ -123,10 +124,9 @@ class _HomePageState extends State<HomePage> {
         return;
       }
       w.on(EventType.WindowCreated, (window, data) {
-          _readys[window] = true;
-          setState(() {});
-        })
-        .create();
+        _readys[window] = true;
+        setState(() {});
+      }).create();
     });
   }
 
@@ -150,40 +150,42 @@ class _HomePageState extends State<HomePage> {
     return Card(
       margin: EdgeInsets.all(10),
       child: Padding(
-        padding: EdgeInsets.all(10),
-        child: Column(
-          children: [
-            Text(w.id, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: Color.fromARGB(255, 214, 213, 213),
-                borderRadius: BorderRadius.all(Radius.circular(4))
+          padding: EdgeInsets.all(10),
+          child: Column(
+            children: [
+              Text(w.id,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                    color: Color.fromARGB(255, 214, 213, 213),
+                    borderRadius: BorderRadius.all(Radius.circular(4))),
+                child: Text(w.config?.toString() ?? ""),
               ),
-              child: Text(w.config?.toString()??""),
-            ),
-            SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: (_readys[w] == true) ? () => w.start() : null,
-                  child: Text("Open"),
-                ),
-                TextButton(
-                  onPressed: w.config?.route != null ? () => _debug(w) : null,
-                  child: Text("Debug")),
-                TextButton(
-                  onPressed: (_readys[w] == true) ? () => w.close() : null,
-                  child: Text("Close", style: TextStyle(color: Colors.red)),
-                ),
-              ],
-            )
-          ],
-        )
-      ),
+              SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: (_readys[w] == true) ? () => w.start() : null,
+                    child: Text("Open"),
+                  ),
+                  TextButton(
+                      onPressed:
+                          w.config?.route != null ? () => _debug(w) : null,
+                      child: Text("Debug")),
+                  TextButton(
+                    onPressed: (_readys[w] == true)
+                        ? () => {w.close(), w.share("close")}
+                        : null,
+                    child: Text("Close", style: TextStyle(color: Colors.red)),
+                  ),
+                ],
+              )
+            ],
+          )),
     );
   }
 }
