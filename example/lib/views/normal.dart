@@ -40,16 +40,13 @@ class _NonrmalViewState extends State<NonrmalView> {
             child: Stack(
           children: [
             Positioned(
-                right: 5,
-                top: 5,
-                child: Icon(Icons.drag_handle_rounded).draggable()),
+                right: 5, top: 5, child: Icon(Icons.drag_handle_rounded)),
             Positioned(
                 right: 5,
                 bottom: 5,
                 child: RotationTransition(
-                        turns: AlwaysStoppedAnimation(-45 / 360),
-                        child: Icon(Icons.unfold_more_rounded))
-                    .draggable())
+                    turns: AlwaysStoppedAnimation(-45 / 360),
+                    child: Icon(Icons.unfold_more_rounded)))
           ],
         )),
       ),

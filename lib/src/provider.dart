@@ -172,23 +172,24 @@ typedef DragCallback = void Function(Offset offset);
 
 class _DragAnchor extends StatefulWidget {
   final Widget child;
-  final bool horizontal;
-  final bool vertical;
+  // TODO:
+  // final bool horizontal;
+  // final bool vertical;
 
-  final DragCallback? onDragStart;
-  final DragCallback? onDragUpdate;
-  final DragCallback? onDragEnd;
+  // final DragCallback? onDragStart;
+  // final DragCallback? onDragUpdate;
+  // final DragCallback? onDragEnd;
 
   const _DragAnchor({
     Key? key,
     required this.child,
 
-    this.horizontal = true,
-    this.vertical = true,
+    // this.horizontal = true,
+    // this.vertical = true,
 
-    this.onDragStart,
-    this.onDragUpdate,
-    this.onDragEnd,
+    // this.onDragStart,
+    // this.onDragUpdate,
+    // this.onDragEnd,
   }) : super(key: key);
 
   @override
@@ -201,19 +202,29 @@ class _DragAnchorState extends State<_DragAnchor> {
   Widget build(BuildContext context) {
     // return Draggable();
     return GestureDetector(
-      onPanDown: (v) {
-        print("=======> down $v");
-      },
-      onPanUpdate: (v) {
-        print("======> move $v");
-
-      },
-      onPanEnd: (v) {
-        print("======> up $v");
-        
-      },
+      onTapDown: _enableDrag,
+      onTapUp: _disableDrag2,
+      onTapCancel: _disableDrag,
       child: widget.child,
     );
+  }
+
+  _enableDrag(_) {
+    // enabe drag
+    Window.of(context)?.update(WindowConfig(
+      draggable: true,
+    ));
+  }
+
+  _disableDrag() {
+    // disable drag
+    Window.of(context)?.update(WindowConfig(
+      draggable: false,
+    ));
+  }
+
+  _disableDrag2(_) {
+    _disableDrag();
   }
 }
 
@@ -264,11 +275,11 @@ extension WidgetProviderExtension on Widget {
   }
 
   /// Export draggable extension function to inject for child widget
-  Widget draggable({
-    bool enabled = true,
-  }) {
-    return enabled?_DragAnchor(child: this):this;
-  }
+  // Widget draggable({
+  //   bool enabled = true,
+  // }) {
+  //   return enabled?_DragAnchor(child: this):this;
+  // }
 
   /// Export resizable extension function to inject for child
   // Widget resizable({
