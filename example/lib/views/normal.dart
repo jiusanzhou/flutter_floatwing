@@ -32,7 +32,7 @@ class _NonrmalViewState extends State<NonrmalView> {
 
   _changeSize() {
     _expend = !_expend;
-    _size = _expend?200:100;
+    _size = _expend ? 200 : 100;
     setState(() {});
   }
 
@@ -42,7 +42,7 @@ class _NonrmalViewState extends State<NonrmalView> {
       child: Container(
         width: _size,
         height: _size,
-        color: dragging?Colors.yellowAccent:null,
+        color: dragging ? Colors.yellowAccent : null,
         child: Card(
             child: Stack(
           children: [

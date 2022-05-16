@@ -5,7 +5,6 @@ import 'package:flutter_floatwing/flutter_floatwing.dart';
 
 typedef WindowListener = dynamic Function(Window window, dynamic data);
 
-
 /// events name
 enum EventType {
   WindowCreated,
@@ -32,12 +31,11 @@ extension _EventType on EventType {
   };
 
   static EventType? fromString(String v) {
-    EventType.values.firstWhere((e) => e.name==v);
+    EventType.values.firstWhere((e) => e.name == v);
   }
 
   String get name => _names[this]!;
 }
-
 
 /// Event is a common event
 class Event {
@@ -130,7 +128,8 @@ class EventManager {
     // w.id -> w -> type -> [cb]
     if (_listeners[window.id] == null) _listeners[window.id] = {};
     if (_listeners[window.id]![key] == null) _listeners[window.id]![key] = {};
-    if (_listeners[window.id]![key]![window] == null) _listeners[window.id]![key]![window] = [];
+    if (_listeners[window.id]![key]![window] == null)
+      _listeners[window.id]![key]![window] = [];
     if (!_listeners[window.id]![key]![window]!.contains(callback))
       _listeners[window.id]![key]![window]!.add(callback);
     return this;
