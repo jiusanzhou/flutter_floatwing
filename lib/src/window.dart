@@ -1,32 +1,34 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
-import 'package:flutter_floatwing/src/event.dart';
 
+typedef OnDataHanlder = Future<dynamic> Function(String? source, String? name, dynamic data);
 class Window {
   String id = "default";
   WindowConfig? config;
 
   double? pixelRadio;
+  SystemConfig? system;
+  OnDataHanlder? _onDataHandler;
 
-  EventManager? _eventManager;
-
-  EventManager? get eventManager => _eventManager;
+  late EventManager _eventManager;
 
   Window({this.id = "default", this.config}) {
-    _eventManager = EventManager(this);
+    _eventManager = EventManager(_message, window: this);
 
+    // share data use the call
     _channel.setMethodCallHandler((call) {
-      var res = _eventManager?.sink(call.method, call.arguments) ?? [];
-      if (res.length > 0) {
-        print("[window] handled event: ${call.method}");
-        return Future.value(null);
+      switch(call.method) {
+        case "data.share": {
+          var map = call.arguments as Map<dynamic, dynamic>;
+          // source, name, data
+          // if not provided, should not call this
+          return _onDataHandler?.call(map["source"], map["name"], map["data"])??Future.value(null);
+        }
       }
-
-      switch (call.method) {
-      }
-      print("[window] unknown listender or method register: ${call.method}");
       return Future.value(null);
     });
   }
@@ -42,7 +44,7 @@ class Window {
 
   @override
   String toString() {
-    return "Window[$id]: $config";
+    return "Window[$id]@${super.hashCode}, ${_eventManager.toString()}, config: $config";
   }
 
   Window applyMap(Map<dynamic, dynamic>? map) {
@@ -50,6 +52,7 @@ class Window {
     if (map == null) return this;
     id = map["id"];
     pixelRadio = map["pixelRadio"] ?? 1.0;
+    system = SystemConfig.fromMap(map["system"] ?? {});
     config = WindowConfig.fromMap(map["config"]);
     return this;
   }
@@ -73,17 +76,36 @@ class Window {
     return await _channel.invokeMethod("window.close", {
       "id": id,
       "force": force,
+    }).then((v) {
+      // remove the window from plugin
+      FloatwingPlugin().windows.remove(id);
+      return v;
     });
   }
 
   Future<Window?> create({bool start = false}) async {
     // // create the engine first
-    return await FloatwingPlugin().createWindow(this.id, this.config!, window: this);
+    return await FloatwingPlugin()
+        .createWindow(this.id, this.config!, start: start, window: this);
+  }
+
+  /// create child window
+  /// just method shoudld only called in window engine
+  Future<Window?> createChildWindow(
+    String? id,
+    WindowConfig config, {
+    bool start = false, // start immediately if true
+    Window? window,
+  }) async {
+    return FloatwingPlugin().internalCreateWindow(id, config,
+        start: start,
+        window: window,
+        channel: _channel,
+        name: "window.create_child");
   }
 
   Future<bool?> start() async {
     assert(config != null, "config can't be null");
-    print("[window] invoke window.start for $this");
     return await _channel.invokeMethod("window.start", {
       "id": id,
     });
@@ -104,36 +126,67 @@ class Window {
       "config": cfg.toMap(),
     });
     // var updates = await FloatwingPlugin().updateWindow(id, cfg);
+    // update the plugin store
     applyMap(updates);
     return true;
   }
 
   Future<bool?> show({bool visible = true}) async {
-    // return FloatwingPlugin().showWindow(id, v);
     config?.visible = visible;
     return await _channel.invokeMethod("window.show", {
       "id": id,
       "visible": visible,
+    }).then((v) {
+      // update the plugin store
+      if (v) FloatwingPlugin().windows[id]?.config?.visible = visible;
+      return v;
     });
   }
 
+  /// share data with current window
+  /// send data use current window id as target id
+  /// and get value return
+  Future<dynamic> share(dynamic data, {
+    String name = "default",
+  }) async {
+    var map = {};
+    map["target"] = id;
+    map["data"] = data;
+    map["name"] = name;
+    // make sure data is serialized
+    return await _channel.invokeMethod("data.share", map);
+  }
+
+  /// on data to receive data from other shared
+  /// maybe same like event handler
+  /// but one window in engine can only have one data handler
+  /// to make sure data not be comsumed multiple times.
+  Window onData(OnDataHanlder handler) {
+    assert(_onDataHandler==null, "onData can only called once");
+    _onDataHandler = handler;
+    return this;
+  } 
+
   // sync window object from android service
   // only window engine call this
-  Future<Window?> sync() async {
-    // assert if you are in main engine should call this
-    var map = await _channel.invokeMapMethod("window.sync");
-    print("[window] sync window object from android: $map");
-    if (map == null) return null;
-    applyMap(map);
-    FloatwingPlugin().saveWindow(this);
-    return this;
+  // if we manage other windows in some window engine
+  // this will not works, we must improve it
+  static Future<Map<dynamic, dynamic>?> sync() async {
+    return await _channel.invokeMapMethod("window.sync");
   }
 
   /// on register callback to listener
-  Window on(String name, WindowListener callback) {
-    print("[window] register event listener $name for $id");
-    _eventManager?.on(name, callback);
+  Window on(EventType type, WindowListener callback) {
+    _eventManager.on(this, type, callback);
     return this;
+  }
+
+  Map<String, dynamic> toMap() {
+    var map = Map<String, dynamic>();
+    map["id"] = id;
+    map["pixelRadio"] = pixelRadio;
+    map["config"] = config?.toMap();
+    return map;
   }
 }
 
@@ -142,7 +195,7 @@ class WindowConfig {
 
   String? entry;
   String? route;
-  double? callback; // use callback to start engine
+  Function? callback; // use callback to start engine
 
   bool? autosize;
 
@@ -152,7 +205,7 @@ class WindowConfig {
   int? y;
 
   int? format;
-  int? gravity;
+  GravityType? gravity;
   int? type;
 
   bool? clickable;
@@ -167,37 +220,37 @@ class WindowConfig {
   /// we need this for update, so must wihtout default value
   WindowConfig({
     this.id = "default",
-
     this.entry = "main",
     this.route,
     this.callback,
-
     this.autosize,
-
     this.width,
     this.height,
     this.x,
     this.y,
-
     this.format,
     this.gravity,
     this.type,
-
     this.clickable,
     this.draggable,
     this.focusable,
-
     this.immersion,
-
     this.visible,
-  });
+  }) : assert(
+            callback == null ||
+                PluginUtilities.getCallbackHandle(callback) != null,
+            "callback is not a static function");
 
   factory WindowConfig.fromMap(Map<dynamic, dynamic> map) {
+    var _cb;
+    if (map["callback"] != null)
+      _cb = PluginUtilities.getCallbackFromHandle(
+          CallbackHandle.fromRawHandle(map["callback"]));
     return WindowConfig(
       // id: map["id"],
       entry: map["entry"],
       route: map["route"],
-      callback: map["callback"],
+      callback: _cb, // get the callback from id
 
       autosize: map["autosize"],
 
@@ -207,7 +260,7 @@ class WindowConfig {
       y: map["y"],
 
       format: map["format"],
-      gravity: map["gravity"],
+      gravity: GravityType.Unknown.fromInt(map["gravity"]),
       type: map["type"],
 
       clickable: map["clickable"],
@@ -225,7 +278,10 @@ class WindowConfig {
     // map["id"] = id;
     map["entry"] = entry;
     map["route"] = route;
-    map["callback"] = callback;
+    // find the callback id from callback function
+    map["callback"] = callback != null
+        ? PluginUtilities.getCallbackHandle(callback!)?.toRawHandle()
+        : null;
 
     map["autosize"] = autosize;
 
@@ -235,7 +291,7 @@ class WindowConfig {
     map["y"] = y;
 
     map["format"] = format;
-    map["gravity"] = gravity;
+    map["gravity"] = gravity?.toInt();
     map["type"] = type;
 
     map["clickable"] = clickable;
@@ -251,10 +307,11 @@ class WindowConfig {
 
   // return a window frm config
   Window to() {
+    // will lose window instance
     return Window(id: this.id ?? "default", config: this);
   }
 
-  Future<Window> create({
+  Future<Window?> create({
     String? id = "default",
     bool start = false,
   }) async {
@@ -270,8 +327,4 @@ class WindowConfig {
     map.removeWhere((key, value) => value == null);
     return json.encode(map).toString();
   }
-}
-
-enum Aligment {
-  center,
 }

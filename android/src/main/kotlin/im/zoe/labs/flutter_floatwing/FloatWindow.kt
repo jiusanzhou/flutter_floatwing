@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.drawable.Drawable
 import android.os.Build
 import android.util.Log
 import android.view.Gravity
@@ -31,9 +30,7 @@ class FloatWindow(
     cfg: Config): View.OnTouchListener, MethodChannel.MethodCallHandler,
     BasicMessageChannel.MessageHandler<Any?> {
 
-    companion object {
-        private const val TAG = "FloatWindow"
-    }
+    var parent: FloatWindow? = null
 
     var config = cfg
 
@@ -43,6 +40,8 @@ class FloatWindow(
     var engine = eng
 
     var wm = wmr
+
+    var subscribedEvents: HashMap<String, Boolean> = HashMap()
 
     var view: FlutterView = FlutterView(context, FlutterTextureView(context))
 
@@ -68,12 +67,12 @@ class FloatWindow(
             view.isFocusableInTouchMode = it
         }
 
+        view.setBackgroundColor(Color.TRANSPARENT)
+        view.fitsSystemWindows = true
+
         config.visible?.let{ setVisible(it) }
 
         view.setOnTouchListener(this)
-
-        view.setBackgroundColor(Color.TRANSPARENT)
-        view.fitsSystemWindows = true
 
         // view.attachToFlutterEngine(engine)
         return this
@@ -104,14 +103,14 @@ class FloatWindow(
     }
 
     fun setVisible(visible: Boolean = true): Boolean {
-        Log.d(TAG, "[window] set window $key => $visible");
+        Log.d(TAG, "[window] set window $key => $visible")
         emit("visible", visible)
         view.visibility = if (visible) View.VISIBLE else View.GONE
         return visible
     }
 
-    fun update(cfg: Config): Map<String, Any?>? {
-        Log.d(TAG, "[window] update window $key => $cfg");
+    fun update(cfg: Config): Map<String, Any?> {
+        Log.d(TAG, "[window] update window $key => $cfg")
         config = config.update(cfg).also {
             layoutParams = it.to()
             if (_started) wm.updateViewLayout(view, layoutParams)
@@ -143,20 +142,52 @@ class FloatWindow(
         return true
     }
 
-    fun emit(name: String, data: Any? = null) {
-        Log.i(TAG, "[window] emit event: Window[$key] $name ")
-        _channel.invokeMethod("window.$name", data)
-
-        // we need to send to man engine
-        service._channel.invokeMethod("window.$name", key)
+    fun shareData(data: Map<*, *>, source: String? = null, result: MethodChannel.Result? = null) {
+        shareData(_channel, data, source, result)
     }
 
-    fun toMap(): Map<String, Any?>? {
+    fun simpleEmit(msgChannel: BasicMessageChannel<Any?>, name: String, data: Any?=null) {
+        val map = HashMap<String, Any?>()
+        map["name"] = name
+        map["id"] = key // this is special for main engine
+        map["data"] = data
+        msgChannel.send(map)
+    }
+
+    fun emit(name: String, data: Any? = null, prefix: String?="window", pluginNeed: Boolean = true) {
+        val evtName = "$prefix.$name"
+        // Log.i(TAG, "[window] emit event: Window[$key] $name ")
+
+        // check if need to send to my self
+        if (true||subscribedEvents.containsKey(name)||subscribedEvents.containsKey("*")) {
+            // emit to window engine
+            simpleEmit(_message, evtName, data)
+        }
+
+        // plugin
+        // check if we need to fire to plugin
+        if (pluginNeed&&(true||service.subscribedEvents.containsKey("*")||service.subscribedEvents.containsKey(evtName))) {
+            simpleEmit(service._message, evtName, data)
+        }
+
+        // emit parent engine
+        // if fire to parent need have no need to fire to service again
+        if(parent!=null&&parent!=this) {
+            parent!!.simpleEmit(parent!!._message, evtName, data)
+        }
+
+        // _channel.invokeMethod("window.$name", data)
+        // we need to send to man engine
+        // service._channel.invokeMethod("window.$name", key)
+    }
+
+    fun toMap(): Map<String, Any?> {
         // must not null if success created
         val map = HashMap<String, Any?>()
         map["id"] = key
         map["pixelRadio"] = service.pixelRadio
-        map["config"] = config.toMap()?.filter { it.value != null }
+        map["system"] = service.systemConfig
+        map["config"] = config.toMap().filter { it.value != null }
         return map
     }
 
@@ -164,41 +195,85 @@ class FloatWindow(
         return "${toMap()}"
     }
 
+    // return window from svc.windows by id
+    fun take(id: String): FloatWindow? {
+        return service.windows[id]
+    }
+
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        // TODO: move window call from service to here
         return when (call.method) {
+            // just take current engine's window
             "window.sync" -> {
                 // when flutter is ready should call this to sync the window object.
                 Log.i(TAG, "[window] window.sync from flutter side: $key")
                 result.success(toMap())
             }
+
+            // we need to support call window.* in window engine
+            // but the window engine register as window channel
+            // so we should take the id first and then get window from windows cache
+            // TODO: those code should move to service
+
+            "window.create_child" -> {
+                val id = call.argument<String>("id") ?: "default"
+                val cfg = call.argument<Map<String, *>>("config")!!
+                val start = call.argument<Boolean>("start") ?: false
+                val config = FloatWindow.Config.from(cfg)
+                Log.d(TAG, "[service] window.create_child request_id: $id")
+                return result.success(FloatwingService.createWindow(service.applicationContext, id,
+                        config, start, this))
+            }
             "window.close" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.close request_id: $id, my_id: $key")
                 val force = call.argument("force") ?: false
-                return result.success(destroy(force))
+                return result.success(take(id)?.destroy(force))
             }
             "window.destroy" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.destroy request_id: $id, my_id: $key")
-                return result.success(destroy(true))
+                return result.success(take(id)?.destroy(true))
             }
             "window.start" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.start request_id: $id, my_id: $key")
-                return result.success(start())
+                return result.success(take(id)?.start())
             }
             "window.update" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.update request_id: $id, my_id: $key")
                 val config = Config.from(call.argument<Map<String, *>>("config")!!)
-                return result.success(update(config))
+                return result.success(take(id)?.update(config))
             }
             "window.show" -> {
                 val id = call.argument<String?>("id")?:"<unset>"
                 Log.d(TAG, "[window] window.show request_id: $id, my_id: $key")
                 val visible = call.argument<Boolean>("visible") ?: true
-                return result.success(setVisible(visible))
+                return result.success(take(id)?.setVisible(visible))
+            }
+            "window.lifecycle" -> {
+
+            }
+            "event.subscribe" -> {
+                val id = call.argument<String?>("id")?:"<unset>"
+
+            }
+            "data.share" -> {
+                // communicate with other window, only 1 - 1 with id
+                val args = call.arguments as Map<*, *>
+                val targetId = call.argument<String?>("target")
+                Log.d(TAG, "[window] share data from $key with $targetId: $args")
+                if (targetId == null) {
+                    Log.d(TAG, "[window] share data with plugin")
+                    return result.success(shareData(service._channel, args, source=key, result=result))
+                }
+                if (targetId == key) {
+                    Log.d(TAG, "[window] can't share data with self")
+                    return result.error("no allow", "share data from $key to $targetId", "")
+                }
+                val target = service.windows[targetId]
+                    ?: return result.error("not found", "target window $targetId not exits", "");
+                return target.shareData(args, source=key, result=result)
             }
             else -> {
                 result.notImplemented()
@@ -207,10 +282,87 @@ class FloatWindow(
     }
 
     override fun onMessage(msg: Any?, reply: BasicMessageChannel.Reply<Any?>) {
-
+        // stream message
     }
 
-    override fun onTouch(p0: View?, p1: MotionEvent?): Boolean {
+    companion object {
+        private const val TAG = "FloatWindow"
+
+        fun shareData(channel: MethodChannel, data: Map<*, *>, source: String? = null,
+                      result: MethodChannel.Result? = null): Any? {
+            // id is the data comes from
+            // invoke the method channel
+            val map = HashMap<String, Any?>()
+            map["source"] = source
+            data.forEach { map[it.key as String] = it.value }
+            channel.invokeMethod("data.share", map, result)
+            // how to get data back
+            return null
+        }
+    }
+
+    // window is dragging
+    private var dragging = false
+
+    // start point
+    private var lastX = 0f
+    private var lastY = 0f
+
+    // border around
+    // TODO: support generate around edge
+
+    override fun onTouch(view: View?, event: MotionEvent?): Boolean {
+        // default draggable should be false
+        if (config.draggable != true) return false
+        when (event?.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // touch start
+                dragging = false
+                lastX = event.rawX
+                lastY = event.rawY
+                // TODO: support generate around edge
+            }
+            MotionEvent.ACTION_MOVE -> {
+                // touch move
+                val dx = event.rawX - lastX
+                val dy = event.rawY - lastY
+
+                // ignore too small fist start moving(some time is click)
+                if (!dragging && dx*dx+dy*dy < 25) {
+                    return false
+                }
+
+                // update the last point
+                lastX = event.rawX
+                lastY = event.rawY
+
+                val xx = layoutParams.x + dx.toInt()
+                val yy = layoutParams.y + dy.toInt()
+
+                if (!dragging) {
+                    // first time dragging
+                    emit("drag_start", listOf(xx, yy))
+                }
+
+                dragging = true
+                // update x, y, need to update config so use config to update
+                update(Config().apply {
+                    // calculate with the border
+                    x = xx
+                    y = yy
+                })
+
+                emit("dragging", listOf(xx, yy))
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // touch end
+                if (dragging) emit("drag_end", listOf(event.rawX, event.rawY))
+                return dragging
+            }
+            else -> {
+                return false
+            }
+        }
         return false
     }
 
@@ -246,8 +398,8 @@ class FloatWindow(
             val cfg = this
             return LayoutParams().apply {
                 // set size
-                width = cfg.width ?: 100 // we must have 1 pixel, let flutter can generate the pixel radio
-                height = cfg.height ?: 100 // we must have 1 pixel, let flutter can generate the pixel radio
+                width = cfg.width ?: 1 // we must have 1 pixel, let flutter can generate the pixel radio
+                height = cfg.height ?: 1 // we must have 1 pixel, let flutter can generate the pixel radio
 
                 // set position fixed if with (x, y)
                 cfg.x?.let { x = it } // default not set
@@ -257,15 +409,18 @@ class FloatWindow(
                 format = cfg.format ?: PixelFormat.TRANSPARENT
 
                 // default start from center
-                gravity = cfg.gravity ?: Gravity.CENTER
+                gravity = cfg.gravity ?: Gravity.TOP or Gravity.LEFT
 
                 // default flags
                 flags = FLAG_LAYOUT_IN_SCREEN or FLAG_NOT_TOUCH_MODAL
                 // if immersion add flag no limit
                 cfg.immersion?.let{ if (it) flags = flags or FLAG_LAYOUT_NO_LIMITS }
+                // default we should be clickable
                 // if not clickable, add flag not touchable
                 cfg.clickable?.let{ if (!it) flags = flags or FLAG_NOT_TOUCHABLE }
-                // if focusable, add flag
+                // default we should be no focusable
+                if (cfg.focusable == null) { cfg.focusable = false }
+                // if not focusable, add no focusable flag
                 cfg.focusable?.let { if (!it) flags = flags or FLAG_NOT_FOCUSABLE }
 
                 // default type is overlay
@@ -273,7 +428,7 @@ class FloatWindow(
             }
         }
 
-        fun toMap(): Map<String, Any?>? {
+        fun toMap(): Map<String, Any?> {
             val map = HashMap<String, Any?>()
             map["entry"] = entry
             map["route"] = route

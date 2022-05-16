@@ -1,3 +1,5 @@
-## 0.0.1
+## 0.1.0
 
-* TODO: Describe initial release.
+
+- feature: basic support for overlay window
+- chore: add exmaples
