@@ -260,6 +260,47 @@ void myOverlayMain() {
     }
 ```
 
+### Wrap your widget
+
+For simple widget, you have no need to do with your widget.
+But if you want more functions and make your code clean,
+we provide a injector for your widget.
+
+For now there are some functions listed below,
+- Auto resize the window view.
+- Auto sync and ensure the window.
+- Wrap a `MaterialApp`
+- *more features are coming*
+
+Before, we write our overlay main function, like below,
+```dart
+void overlayMain() {
+  runApp(MaterialApp(
+    home: MyOverView(),
+  ))
+}
+```
+
+Now, we can code simply,
+```dart
+void overlayMain() {
+  runApp(MyOverView().floatwing(app: true)))
+}
+```
+
+We can wrap to a `Widget` and a `WidgetBuilder`,
+wrap the `WidgetBuilder`, we can access the window instance
+with `Window.of(context)`, while `FloatwingPlugin().currentWindow` 
+is the only to get window instance for wrap `Widget`.
+
+If we want to access the window with `Window.of(context)`,
+change the code like below,
+```dart
+void overlayMain() {
+  runApp(((_)=>MyOverView()).floatwing(app: true).make()))
+}
+```
+
 ### Access window in overlay window
 
 In your window engine, you can access the window object in 2 ways:
