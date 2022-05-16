@@ -13,6 +13,7 @@ import android.os.PowerManager
 import android.util.Log
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
+import im.zoe.labs.flutter_floatwing.Utils.Companion.toMap
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
@@ -23,6 +24,8 @@ import io.flutter.plugin.common.JSONMessageCodec
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
+import org.json.JSONObject
+import java.lang.Exception
 
 class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.MessageHandler<Any?>, Service() {
 
@@ -34,7 +37,10 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
     lateinit var _channel: MethodChannel
     lateinit var _message: BasicMessageChannel<Any?>
 
+    var subscribedEvents: HashMap<String, Boolean> = HashMap()
+
     var pixelRadio = 2.0
+    var systemConfig = emptyMap<String, Any?>()
 
     // store the window object use the id as key
     val windows = HashMap<String, FloatWindow>()
@@ -58,6 +64,16 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         pixelRadio = mContext.getSharedPreferences(FlutterFloatwingPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
             .getFloat(FlutterFloatwingPlugin.PIXEL_RADIO_KEY, 2F).toDouble()
         Log.d(TAG, "[service] load the pixel radio: $pixelRadio")
+
+        // load system config from store
+        try {
+            val str = mContext.getSharedPreferences(FlutterFloatwingPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+                .getString(FlutterFloatwingPlugin.SYSTEM_CONFIG_KEY, "{}")
+            val map = JSONObject(str)
+            systemConfig = map.toMap()
+        }catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         // install this method channel for the main engine
         FlutterEngineCache.getInstance().get(FlutterFloatwingPlugin.FLUTTER_ENGINE_CACHE_KEY)
@@ -122,7 +138,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
                 val start = call.argument<Boolean>("start") ?: false
                 val config = FloatWindow.Config.from(cfg)
                 Log.d(TAG, "[service] window.create request_id: $id")
-                return result.success(createWindow(mContext, id, config, start))
+                return result.success(createWindow(mContext, id, config, start, null))
             }
 
             // call for windows
@@ -152,6 +168,19 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             "window.sync" -> {
                 Log.d(TAG, "[service] fake window.sync")
                 return result.success(null)
+            }
+            "data.share" -> {
+                // communicate with other window, only 1 - 1 with id
+                val args = call.arguments as Map<*, *>
+                val targetId = call.argument<String?>("target")
+                Log.d(TAG, "[service] share data from <plugin> with $targetId: $args")
+                if (targetId == null) {
+                    Log.d(TAG, "[service] can't share data with self")
+                    return result.error("no allow", "share data from plugin to plugin", "")
+                }
+                val target = windows[targetId]
+                    ?: return result.error("not found", "target window $targetId not exits", "");
+                return target.shareData(args, result=result)
             }
             else -> {
                 Log.d(TAG, "[service] unknown method ${call.method}")
@@ -212,7 +241,8 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         return true
     }
 
-    private fun createWindow(id: String, config: FloatWindow.Config, start: Boolean = false): Map<String, Any?>? {
+    private fun createWindow(id: String, config: FloatWindow.Config, start: Boolean = false,
+        p: FloatWindow?): Map<String, Any?>? {
         // check if id exits
         if (windows.contains(id)) {
             Log.e(TAG, "[service] window with id $id exits")
@@ -221,40 +251,24 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
 
         // get flutter engine
         val fKey = id.flutterKey()
-        val (eng, fromCache) = getFlutterEngine(fKey, config.entry, config.route)
-
-        // use the callback to set window id for this engine
-        // and then engine will take window object by call with this id
-
-        /*
-        val cbId = mContext.getSharedPreferences(FlutterFloatwingPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
-            .getLong(FlutterFloatwingPlugin.CALLBACK_KEY, 0)
-        if (cbId != 0L) {
-            Log.d(TAG, "try to find callback and execute: $cbId")
-            val info = FlutterCallbackInformation.lookupCallbackInformation(cbId)
-            val callback = DartExecutor.DartCallback(mContext.assets, FlutterInjector.instance().flutterLoader().findAppBundlePath(), info)
-            eng.dartExecutor.executeDartCallback(callback)
-        } else {
-            Log.e(TAG, "fatal: no callback register")
-        }*/
+        val (eng, fromCache) = getFlutterEngine(fKey, config.entry, config.route, config.callback)
 
         val svc = this
-
         return FloatWindow(mContext, windowManager, fKey, eng, config).apply {
             key = id
-            // save the service
             service = svc
+            parent = p
             Log.d(TAG, "[service] set window as handler $METHOD_CHANNEL/window for $eng")
         }.init().also {
             Log.d(TAG, "[service] created window: $id $config")
-            if (!fromCache) it.emit("created")
+            it.emit("created", !fromCache)
             windows[it.key] = it
             if (start) it.start()
         }.toMap()
     }
 
     // this function is useful when we want to start service automatically
-    private  fun getFlutterEngine(key: String, entry: String?, route: String?): Pair<FlutterEngine, Boolean> {
+    private  fun getFlutterEngine(key: String, entryName: String?, route: String?, callback: Long?): Pair<FlutterEngine, Boolean> {
         // first take from cache
         var eng = FlutterEngineCache.getInstance().get(key)
         if (eng != null) {
@@ -270,7 +284,23 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         // FlutterInjector.instance().flutterLoader().startInitialization(mContext)
         // FlutterInjector.instance().flutterLoader().ensureInitializationComplete(mContext, arrayOf())
 
-        var entry = entry
+        // first let's use callback to start engine first
+        if (callback!=null&&callback>0L) {
+            Log.i(TAG, "[service] start flutter engine, id: $key callback: $callback")
+
+            eng = FlutterEngine(mContext)
+            val info = FlutterCallbackInformation.lookupCallbackInformation(callback)
+            val args = DartExecutor.DartCallback(mContext.assets, FlutterInjector.instance().flutterLoader().findAppBundlePath(), info)
+            // execute the callback function
+            eng.dartExecutor.executeDartCallback(args)
+
+            // store the engine to cache
+            FlutterEngineCache.getInstance().put(key, eng)
+
+            return Pair(eng, false)
+        }
+
+        var entry = entryName
         if (entry==null) {
             // try use the main entrypoint
             entry = "main"
@@ -301,6 +331,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
     private fun installChannel(eng: FlutterEngine): Boolean {
         Log.d(TAG, "[service] set service as handler $METHOD_CHANNEL/window for $eng")
         // set the method and message channel
+        // this must be same as window, because we use the same method to call invoke
         _channel = MethodChannel(eng.dartExecutor.binaryMessenger,
             "$METHOD_CHANNEL/window").also { it.setMethodCallHandler(this) }
         _message = BasicMessageChannel(eng.dartExecutor.binaryMessenger,
@@ -329,13 +360,14 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             return true
         }
 
-        fun createWindow(context: Context, id: String, config: FloatWindow.Config, start: Boolean = false): Map<String, Any?>? {
+        fun createWindow(context: Context, id: String, config: FloatWindow.Config,
+                         start: Boolean = false, parent: FloatWindow?): Map<String, Any?>? {
             Log.i(TAG, "[service] create a window: $id $config")
             // make sure the service started
             if (!ensureService(context)) return null
 
             // start the window
-            return instance?.createWindow(id, config, start)
+            return instance?.createWindow(id, config, start, parent)
         }
 
         // ensure the service is started

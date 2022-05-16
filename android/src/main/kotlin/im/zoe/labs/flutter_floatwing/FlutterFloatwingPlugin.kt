@@ -10,7 +10,6 @@ import android.util.Log
 import androidx.annotation.NonNull;
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
-
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -20,6 +19,8 @@ import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 import io.flutter.plugin.common.PluginRegistry.Registrar
+import org.json.JSONObject
+import java.lang.Exception
 
 /** FlutterFloatwingPlugin */
 class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, PluginRegistry.ActivityResultListener {
@@ -61,6 +62,31 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
     }
   }
 
+  private fun saveSystemConfig(data: Map<*, *>?): Boolean {
+    // if not exit should save
+    val old =  mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+      .getString(SYSTEM_CONFIG_KEY, null)
+    if (old != null) {
+      Log.d(TAG, "[plugin] system config already exits: $old")
+      return false
+    }
+
+    FloatwingService.instance?.systemConfig = data as Map<String, Any?>
+
+    return try {
+      val str = JSONObject(data).toString()
+      // json encode map to string
+      // try to save
+      mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE).edit()
+        .putString(SYSTEM_CONFIG_KEY, str)
+        .apply()
+      true
+    } catch (e: Exception) {
+      e.printStackTrace()
+      false
+    }
+  }
+
   private fun savePixelRadio(pixelRadio: Double): Boolean {
     val old = mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
       .getFloat(PIXEL_RADIO_KEY, 0F)
@@ -79,16 +105,21 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
     return true
   }
 
+  private fun cleanCache(): Boolean {
+    // delete all of cache files
+    Log.w(TAG, "[plugin] will delete all of contents")
+    mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE).edit()
+      .clear().apply()
+    return true
+  }
+
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     when (call.method) {
       "plugin.initialize" -> {
         // the main engine should call initialize?
         // but the sub engine don't
         val pixelRadio = call.argument("pixelRadio") ?: 1.0
-
-        // store to share preference
-        // if exits don't set
-
+        val systemConfig = call.argument<Map<*, *>?>("system") as Map<*, *>
 
         val map = HashMap<String, Any?>()
         map["permission_grated"] = permissionGiven(mContext)
@@ -96,6 +127,7 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
         map["windows"] = FloatwingService.instance?.windows?.map { it.value.toMap() }
 
         map["pixel_radio_updated"] = savePixelRadio(pixelRadio)
+        map["system_config_updated"] = saveSystemConfig(systemConfig)
 
         return result.success(map)
       }
@@ -108,23 +140,26 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
       "plugin.grant_permission" -> {
         return grantPermission(result)
       }
+      // remove
       "plugin.create_window" -> {
         val id = call.argument<String>("id") ?: "default"
         val cfg = call.argument<Map<String, *>>("config")!!
         val start = call.argument<Boolean>("start") ?: false
         val config = FloatWindow.Config.from(cfg)
-        return result.success(FloatwingService.createWindow(mContext, id, config, start))
+        return result.success(FloatwingService.createWindow(mContext, id, config, start, null))
       }
-//      "plugin.start_window" -> {
-//        val id = call.argument<String>("id") ?: "default"
-//        return result.success(FloatwingService.startWindow(id))
-//      }
       "plugin.is_service_running" -> {
         return result.success(FloatwingService.isRunning(mContext))
       }
       "plugin.start_service" -> {
         return result.success(FloatwingService.isRunning(mContext)
           .or(FloatwingService.start(mContext)))
+      }
+      "plugin.clean_cache" -> {
+        return result.success(cleanCache())
+      }
+      "plugin.sync_windows" -> {
+        return result.success(FloatwingService.instance?.windows?.map { it.value.toMap() })
       }
       "window.sync" -> {
         Log.d(TAG, "[plugin] fake window.sync")
@@ -200,6 +235,7 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
     const val SHARED_PREFERENCES_KEY = "flutter_floatwing_cache"
     const val CALLBACK_KEY = "callback_key"
     const val PIXEL_RADIO_KEY = "pixel_radio"
+    const val SYSTEM_CONFIG_KEY = "system_config"
 
     fun permissionGiven(context: Context): Boolean {
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
