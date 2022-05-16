@@ -1,5 +1,5 @@
 name: flutter_floatwing
-description: A plugin to create floating overlay window for Android.
+description: A Flutter plugin that makes it easier to make floating/overlay windows for Android with pure Flutter.
 version: 0.1.0
 homepage: https://github.com/jiusanzhou/flutter_floatwing
 

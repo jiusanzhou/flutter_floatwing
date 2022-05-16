@@ -1,4 +1,4 @@
-## 0.1
+## 0.1.0
 
 
 - feature: basic support for overlay window
