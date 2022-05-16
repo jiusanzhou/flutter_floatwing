@@ -167,7 +167,6 @@ class _MeasuredSizedState extends State<_MeasuredSized> {
   }
 }
 
-
 typedef DragCallback = void Function(Offset offset);
 
 class _DragAnchor extends StatefulWidget {
@@ -197,7 +196,6 @@ class _DragAnchor extends StatefulWidget {
 }
 
 class _DragAnchorState extends State<_DragAnchor> {
-
   @override
   Widget build(BuildContext context) {
     // return Draggable();
@@ -237,10 +235,8 @@ class _ResizeAnchor extends StatefulWidget {
   const _ResizeAnchor({
     Key? key,
     required this.child,
-
     this.horizontal = true,
     this.vertical = true,
-    
   }) : super(key: key);
 
   @override
@@ -317,7 +313,9 @@ extension WidgetProviderExtension on Widget {
     bool enabled = false,
     bool debug = false,
   }) {
-    return !enabled ? this : MaterialApp(debugShowCheckedModeBanner: debug, home: this);
+    return !enabled
+        ? this
+        : MaterialApp(debugShowCheckedModeBanner: debug, home: this);
   }
 }
 
@@ -327,10 +325,10 @@ extension WidgetBuilderProviderExtension on WidgetBuilder {
     bool app = false,
   }) {
     return (_) => FloatwingContainer(
-      builder: this,
-      debug: debug,
-      app: app,
-    );
+          builder: this,
+          debug: debug,
+          app: app,
+        );
   }
 
   Widget make() {

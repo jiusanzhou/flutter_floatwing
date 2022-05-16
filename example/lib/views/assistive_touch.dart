@@ -72,8 +72,8 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
   void _onTap() {
     var w = Window.of(context);
     // send the postion to pannel window
-    var x = w?.config?.x??0 / (w?.pixelRadio??1);
-    var y = w?.config?.y??0 / (w?.pixelRadio??1);
+    var x = w?.config?.x ?? 0 / (w?.pixelRadio ?? 1);
+    var y = w?.config?.y ?? 0 / (w?.pixelRadio ?? 1);
     pannelWindow?.share([x, y]);
     // send touchWindow postion to pannel window
     pannelWindow?.start();
@@ -424,7 +424,6 @@ class _AssistivePannelState extends State<AssistivePannel>
                 height: _show ? size : 0,
                 left: _show ? 0 : screenWidth / 2,
                 right: _show ? 0 : screenWidth / 2,
-
                 curve: Curves.easeIn,
                 duration: _duration,
                 child: FractionallySizedBox(

@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
-typedef OnDataHanlder = Future<dynamic> Function(String? source, String? name, dynamic data);
+typedef OnDataHanlder = Future<dynamic> Function(
+    String? source, String? name, dynamic data);
+
 class Window {
   String id = "default";
   WindowConfig? config;
@@ -21,13 +23,16 @@ class Window {
 
     // share data use the call
     _channel.setMethodCallHandler((call) {
-      switch(call.method) {
-        case "data.share": {
-          var map = call.arguments as Map<dynamic, dynamic>;
-          // source, name, data
-          // if not provided, should not call this
-          return _onDataHandler?.call(map["source"], map["name"], map["data"])??Future.value(null);
-        }
+      switch (call.method) {
+        case "data.share":
+          {
+            var map = call.arguments as Map<dynamic, dynamic>;
+            // source, name, data
+            // if not provided, should not call this
+            return _onDataHandler?.call(
+                    map["source"], map["name"], map["data"]) ??
+                Future.value(null);
+          }
       }
       return Future.value(null);
     });
@@ -146,7 +151,8 @@ class Window {
   /// share data with current window
   /// send data use current window id as target id
   /// and get value return
-  Future<dynamic> share(dynamic data, {
+  Future<dynamic> share(
+    dynamic data, {
     String name = "default",
   }) async {
     var map = {};
@@ -162,10 +168,10 @@ class Window {
   /// but one window in engine can only have one data handler
   /// to make sure data not be comsumed multiple times.
   Window onData(OnDataHanlder handler) {
-    assert(_onDataHandler==null, "onData can only called once");
+    assert(_onDataHandler == null, "onData can only called once");
     _onDataHandler = handler;
     return this;
-  } 
+  }
 
   // sync window object from android service
   // only window engine call this
