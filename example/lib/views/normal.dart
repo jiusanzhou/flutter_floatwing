@@ -30,12 +30,19 @@ class _NonrmalViewState extends State<NonrmalView> {
   Window? w;
   bool dragging = false;
 
+  _changeSize() {
+    _expend = !_expend;
+    _size = _expend?200:100;
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Center(
       child: Container(
         width: _size,
         height: _size,
+        color: dragging?Colors.yellowAccent:null,
         child: Card(
             child: Stack(
           children: [
@@ -46,7 +53,9 @@ class _NonrmalViewState extends State<NonrmalView> {
                 bottom: 5,
                 child: RotationTransition(
                     turns: AlwaysStoppedAnimation(-45 / 360),
-                    child: Icon(Icons.unfold_more_rounded)))
+                    child: InkWell(
+                        onTap: _changeSize,
+                        child: Icon(Icons.unfold_more_rounded))))
           ],
         )),
       ),

@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import 'package:flutter_floatwing/flutter_floatwing.dart';
@@ -37,7 +34,7 @@ class _MyAppState extends State<MyApp> {
       id: "normal",
       // entry: "floatwing",
       route: "/normal",
-      immersion: true,
+      draggable: true,
     ),
     WindowConfig(
       id: "assitive_touch",
