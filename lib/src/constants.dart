@@ -94,7 +94,7 @@ extension GravityTypeConverter on GravityType {
     required double height,
   }) {
     var v = this.toInt();
-    if (v==null) return o;
+    if (v == null) return o;
 
     var dx = o.dx;
     var dy = o.dy;

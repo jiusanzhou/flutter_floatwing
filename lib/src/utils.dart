@@ -1,5 +1,3 @@
-
-
 import 'dart:ui';
 
 class SystemConfig {
@@ -29,7 +27,8 @@ class SystemConfig {
     };
   }
 
-  @override String toString() {
+  @override
+  String toString() {
     return "${toMap()} ${screenSize}";
   }
 
@@ -42,7 +41,7 @@ class SystemConfig {
   }
 
   factory SystemConfig.fromMap(Map<dynamic, dynamic> map) {
-    var screen = map["screen"]??{};
+    var screen = map["screen"] ?? {};
     return SystemConfig._(
       pixelRadio: map["pixelRadio"],
       screenHeight: screen["height"],
