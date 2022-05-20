@@ -125,7 +125,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             }
             "service.promote" -> {
                 Log.d(TAG, "[service] promote service")
-                val map = call.arguments() as Map<*, *>
+                val map = call.arguments as Map<*, *>?
                 return result.success(promoteService(map))
             }
             "service.demote" -> {
@@ -193,10 +193,15 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         // update the windows from message
     }
 
-    private fun promoteService(map: Map<*, *>): Boolean {
+    private fun promoteService(map: Map<*, *>?): Boolean {
         Log.i(TAG, "[service] promote service to foreground")
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             Log.e(TAG, "[service] promoteToForeground need sdk >= 26")
+            return false
+        }
+
+        if (map == null) {
+            Log.e(TAG, "[service] promote service config is null")
             return false
         }
 
