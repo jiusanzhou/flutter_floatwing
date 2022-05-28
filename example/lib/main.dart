@@ -96,16 +96,40 @@ class _HomePageState extends State<HomePage> {
 
     widget.configs.forEach((c) => _windows.add(c.to()));
 
-    initSyncState();
+    FloatwingPlugin().initialize();
+
+    initAsyncState();
   }
 
   List<Window> _windows = [];
 
   Map<Window, bool> _readys = {};
 
-  initSyncState() async {
-    await FloatwingPlugin().initialize();
+  bool _ready = false;
 
+  initAsyncState() async {
+    var p1 = await FloatwingPlugin().checkPermission();
+    var p2 = await FloatwingPlugin().isServiceRunning();
+
+    // get permission first
+    if (!p1) {
+      FloatwingPlugin().openPermissionSetting();
+      return;
+    }
+
+    // start service
+    if (!p2) {
+      FloatwingPlugin().startService();
+    }
+
+    _createWindows();
+
+    setState(() {
+      _ready = true;
+    });
+  }
+
+  _createWindows() async {
     await FloatwingPlugin().isServiceRunning().then((v) async {
       if (!v)
         await FloatwingPlugin().startService().then((_) {
@@ -133,9 +157,17 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Floatwing example app'),
       ),
-      body: ListView(
-        children: _windows.map((e) => _item(e)).toList(),
-      ),
+      body: _ready
+          ? ListView(
+              children: _windows.map((e) => _item(e)).toList(),
+            )
+          : Center(
+              child: ElevatedButton(
+                  onPressed: () {
+                    initAsyncState();
+                  },
+                  child: Text("Start")),
+            ),
     );
   }
 
