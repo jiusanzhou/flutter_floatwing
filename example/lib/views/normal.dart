@@ -11,7 +11,7 @@ class NonrmalView extends StatefulWidget {
 
 class _NonrmalViewState extends State<NonrmalView> {
   bool _expend = false;
-  double _size = 100;
+  double _size = 150;
 
   @override
   void initState() {
@@ -32,7 +32,7 @@ class _NonrmalViewState extends State<NonrmalView> {
 
   _changeSize() {
     _expend = !_expend;
-    _size = _expend ? 200 : 100;
+    _size = _expend ? 250 : 150;
     setState(() {});
   }
 
@@ -46,6 +46,12 @@ class _NonrmalViewState extends State<NonrmalView> {
         child: Card(
             child: Stack(
           children: [
+            Center(
+                child: ElevatedButton(
+                    onPressed: () {
+                      w?.launchMainActivity();
+                    },
+                    child: Text("Start Activity"))),
             Positioned(
                 right: 5, top: 5, child: Icon(Icons.drag_handle_rounded)),
             Positioned(

@@ -251,6 +251,10 @@ class FloatWindow(
                 val visible = call.argument<Boolean>("visible") ?: true
                 return result.success(take(id)?.setVisible(visible))
             }
+            "window.launch_main" -> {
+                Log.d(TAG, "[window] window.launch_main")
+                return result.success(service.launchMainActivity())
+            }
             "window.lifecycle" -> {
 
             }

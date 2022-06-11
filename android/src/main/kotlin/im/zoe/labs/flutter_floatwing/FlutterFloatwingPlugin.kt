@@ -32,6 +32,7 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
   private lateinit var waitPermissionResult: Result
 
   private var serviceChannelInstalled = false
+  private var isMain = false
 
   override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
     mContext = binding.applicationContext
@@ -47,6 +48,8 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
     if (FlutterEngineCache.getInstance().contains(FLUTTER_ENGINE_CACHE_KEY)) {
       Log.d(TAG, "[plugin] on attached to window engine")
     } else {
+      // update the main flag
+      isMain = true
       // store the flutter engine @only main
       engine = binding.flutterEngine
       FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_CACHE_KEY, engine)
@@ -182,6 +185,9 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
     // TODO: notify the window to show and return the result?
 
     Log.d(TAG, "[plugin] on attached to activity")
+
+    // how to known are the main
+     FloatwingService.onActivityAttached(mActivity)
   }
 
   override fun onDetachedFromActivityForConfigChanges() {
