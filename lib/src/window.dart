@@ -163,6 +163,11 @@ class Window {
     return await _channel.invokeMethod("data.share", map);
   }
 
+  /// launch main activity
+  Future<bool> launchMainActivity() async {
+    return await _channel.invokeMethod("window.launch_main");
+  }
+
   /// on data to receive data from other shared
   /// maybe same like event handler
   /// but one window in engine can only have one data handler

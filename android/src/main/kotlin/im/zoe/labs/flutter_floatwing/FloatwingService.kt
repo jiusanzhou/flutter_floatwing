@@ -1,6 +1,7 @@
 package im.zoe.labs.flutter_floatwing
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -246,6 +247,18 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         return true
     }
 
+    fun launchMainActivity(): Boolean {
+        if (mActivity == null) {
+            Log.e(TAG, "[service] the main activity is null, maybe the service start from background")
+            return false
+        }
+        Log.d(TAG, "[service] launch the main activity")
+        val intent = Intent(this, mActivity?.javaClass)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        return true
+    }
+
     private fun createWindow(id: String, config: FloatWindow.Config, start: Boolean = false,
         p: FloatWindow?): Map<String, Any?>? {
         // check if id exits
@@ -352,6 +365,10 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         @JvmStatic
         private val TAG = "FloatwingService"
 
+        // TODO: improve
+        @SuppressLint("StaticFieldLeak")
+        var mActivity: Activity? = null
+
         @SuppressLint("StaticFieldLeak")
         var instance: FloatwingService? = null
 
@@ -379,6 +396,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         private fun ensureService(context: Context): Boolean {
             if (instance != null) return true
 
+
             // let's start the service
 
             // make sure we granted permission
@@ -401,6 +419,16 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             }
 
             return true
+        }
+
+        fun onActivityAttached(activity: Activity) {
+            Log.i(TAG, "[service] activity attached")
+            // maybe instance is null, so set failed
+            if (mActivity != null) {
+                Log.w(TAG, "[service] main activity already set")
+                return
+            }
+            mActivity = activity
         }
 
         fun installChannel(eng: FlutterEngine): Boolean {
