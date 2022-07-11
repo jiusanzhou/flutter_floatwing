@@ -248,12 +248,12 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
     }
 
     fun launchMainActivity(): Boolean {
-        if (mActivity == null) {
+        if (mActivityClass == null) {
             Log.e(TAG, "[service] the main activity is null, maybe the service start from background")
             return false
         }
         Log.d(TAG, "[service] launch the main activity")
-        val intent = Intent(this, mActivity?.javaClass)
+        val intent = Intent(this, mActivityClass)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
         return true
@@ -368,6 +368,7 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
         // TODO: improve
         @SuppressLint("StaticFieldLeak")
         var mActivity: Activity? = null
+        var mActivityClass: Class<Activity>? = null
 
         @SuppressLint("StaticFieldLeak")
         var instance: FloatwingService? = null
@@ -429,6 +430,8 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
                 return
             }
             mActivity = activity
+            // store the class
+            mActivityClass = mActivity?.javaClass
         }
 
         fun installChannel(eng: FlutterEngine): Boolean {
