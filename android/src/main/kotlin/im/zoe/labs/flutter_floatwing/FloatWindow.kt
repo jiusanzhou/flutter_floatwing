@@ -498,7 +498,9 @@ class FloatWindow(
                 // (data["id"]?.let { it as String } ?: "default").also { cfg.id = it }
                 cfg.entry = data["entry"] as String?
                 cfg.route = data["route"] as String?
-                cfg.callback = data["callback"] as Long?
+
+                val int_callback = data["callback"] as Int?
+                cfg.callback = int_callback?.toLong()
 
                 cfg.autosize = data["autosize"] as Boolean?
 
