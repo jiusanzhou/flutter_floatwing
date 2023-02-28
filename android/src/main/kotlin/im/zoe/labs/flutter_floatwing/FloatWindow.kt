@@ -499,7 +499,7 @@ class FloatWindow(
                 cfg.entry = data["entry"] as String?
                 cfg.route = data["route"] as String?
 
-                val int_callback = data["callback"] as Int?
+                val int_callback = data["callback"] as Number?
                 cfg.callback = int_callback?.toLong()
 
                 cfg.autosize = data["autosize"] as Boolean?
