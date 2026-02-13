@@ -92,21 +92,41 @@ class FloatwingPlugin {
     return true;
   }
 
+  Future<SystemConfig> _getValidSystemConfig() async {
+    var config = SystemConfig();
+    if (config.screenWidth != null &&
+        config.screenWidth! > 0 &&
+        config.screenHeight != null &&
+        config.screenHeight! > 0) {
+      return config;
+    }
+
+    final completer = Completer<SystemConfig>();
+    void checkMetrics(Duration _) {
+      final size = window.physicalSize;
+      if (size.width > 0 && size.height > 0) {
+        completer.complete(SystemConfig());
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback(checkMetrics);
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback(checkMetrics);
+    return completer.future.timeout(
+      const Duration(seconds: 5),
+      onTimeout: () => config,
+    );
+  }
+
   Future<bool> initialize() async {
     if (_inited) return false;
     _inited = true;
 
-    // get the callback id
-    // final CallbackHandle _cbId = PluginUtilities.getCallbackHandle(_callback)!;
-    // if service started will return all windows
+    final systemConfig = await _getValidSystemConfig();
+
     var map = await _channel.invokeMapMethod("plugin.initialize", {
-      // "start_service": true,
-      // "callback": _callback,
-
-      // DEPRECATED: use system
       "pixelRadio": window.devicePixelRatio,
-
-      "system": SystemConfig().toMap(),
+      "system": systemConfig.toMap(),
     });
 
     log("[plugin] initialize result: $map");
