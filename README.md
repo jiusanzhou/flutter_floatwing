@@ -562,6 +562,76 @@ parentWindow?.createChildWindow(
 
 Did you find this plugin useful? Please consider making a donation to help improve it!
 
+## 🔧 Troubleshooting
+
+### Release Mode Error: "No top-level getter declared"
+
+If you see this error in release mode when using `entry-point`:
+
+```
+NoSuchMethodError: No top-level getter 'xxx' declared.
+Could not resolve main entrypoint function.
+```
+
+**Solution**: Make sure your entry point function is:
+
+1. **Defined in `main.dart`** or imported into `main.dart`
+2. **Marked with `@pragma("vm:entry-point")`** to prevent tree-shaking
+
+```dart
+// In main.dart
+@pragma("vm:entry-point")
+void myOverlayMain() {
+  runApp(MyOverlayWidget().floatwing(app: true));
+}
+```
+
+If defined in another file, import it in `main.dart`:
+
+```dart
+// main.dart
+import 'package:myapp/overlay_entry.dart';  // Contains myOverlayMain
+
+void main() {
+  runApp(MyApp());
+}
+
+// Re-export to ensure it's included in the build
+export 'package:myapp/overlay_entry.dart';
+```
+
+### Buttons Get Stuck Pressed When Dragging
+
+If buttons inside a draggable overlay widget get stuck in pressed state when pressing and dragging simultaneously:
+
+**Workaround**: Disable dragging while the button is pressed:
+
+```dart
+ElevatedButton(
+  style: ButtonStyle(
+    foregroundColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.pressed)) {
+        Window.of(context)?.update(WindowConfig(draggable: false));
+        return Colors.blue;
+      } else {
+        Window.of(context)?.update(WindowConfig(draggable: true));
+        return Colors.white;
+      }
+    }),
+  ),
+  onPressed: () { /* ... */ },
+  child: Text("Button"),
+)
+```
+
+### MissingPluginException
+
+If you see `MissingPluginException(No implementation found for method window.start...)`:
+
+1. **Clean rebuild**: `flutter clean && flutter pub get && flutter run`
+2. **Check permissions**: Ensure `SYSTEM_ALERT_WINDOW` permission is granted
+3. **Update to latest version**: This was fixed in recent updates
+
 ## 🤝 Contributing
 
 Contributions are always welcome!
