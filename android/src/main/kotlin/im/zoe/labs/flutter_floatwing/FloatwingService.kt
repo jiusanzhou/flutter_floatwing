@@ -117,76 +117,70 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
 
     }
 
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        when (call.method) {
-            "service.stop_service" -> {
-                Log.d(TAG, "[service] stop the service")
-                val closed = stopService(Intent(baseContext, this.javaClass))
-                return result.success(closed)
-            }
-            "service.promote" -> {
-                Log.d(TAG, "[service] promote service")
-                val map = call.arguments as Map<*, *>?
-                return result.success(promoteService(map))
-            }
-            "service.demote" -> {
-                Log.d(TAG, "[service] demote service")
-                return result.success(demoteService())
-            }
-            "service.create_window" -> {
-                val id = call.argument<String>("id") ?: "default"
-                val cfg = call.argument<Map<String, *>>("config")!!
-                val start = call.argument<Boolean>("start") ?: false
-                val config = FloatWindow.Config.from(cfg)
-                Log.d(TAG, "[service] window.create request_id: $id")
-                return result.success(createWindow(mContext, id, config, start, null))
-            }
-
-            // call for windows
-            "window.close" -> {
-                val id = call.argument<String>("id")!!
-                Log.d(TAG, "[service] window.close request_id: $id")
-                val force = call.argument("force") ?: false
-                return result.success(windows[id]?.destroy(force))
-            }
-            "window.start" -> {
-                val id = call.argument<String>("id") ?: "default"
-                Log.d(TAG, "[service] window.start request_id: $id ${windows[id]}")
-                return result.success(windows[id]?.start())
-            }
-            "window.show" -> {
-                val id = call.argument<String>("id")!!
-                val visible = call.argument("visible") ?: true
-                Log.d(TAG, "[service] window.show request_id: $id")
-                return result.success(windows[id]?.setVisible(visible))
-            }
-            "window.update" -> {
-                val id = call.argument<String>("id")!!
-                Log.d(TAG, "[service] window.update request_id: $id")
-                val config = FloatWindow.Config.from(call.argument<Map<String, *>>("config")!!)
-                return result.success(windows[id]?.update(config))
-            }
-            "window.sync" -> {
-                Log.d(TAG, "[service] fake window.sync")
-                return result.success(null)
-            }
-            "data.share" -> {
-                // communicate with other window, only 1 - 1 with id
-                val args = call.arguments as Map<*, *>
-                val targetId = call.argument<String?>("target")
-                Log.d(TAG, "[service] share data from <plugin> with $targetId: $args")
-                if (targetId == null) {
-                    Log.d(TAG, "[service] can't share data with self")
-                    return result.error("no allow", "share data from plugin to plugin", "")
-                }
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) = when (call.method) {
+        "service.stop_service" -> {
+            Log.d(TAG, "[service] stop the service")
+            result.success(stopService(Intent(baseContext, this.javaClass)))
+        }
+        "service.promote" -> {
+            Log.d(TAG, "[service] promote service")
+            result.success(promoteService(call.arguments as Map<*, *>?))
+        }
+        "service.demote" -> {
+            Log.d(TAG, "[service] demote service")
+            result.success(demoteService())
+        }
+        "service.create_window" -> {
+            val id = call.argument<String>("id") ?: "default"
+            val cfg = call.argument<Map<String, *>>("config")!!
+            val start = call.argument<Boolean>("start") ?: false
+            Log.d(TAG, "[service] window.create request_id: $id")
+            result.success(createWindow(mContext, id, FloatWindow.Config.from(cfg), start, null))
+        }
+        "window.close" -> {
+            val id = call.argument<String>("id")!!
+            Log.d(TAG, "[service] window.close request_id: $id")
+            val force = call.argument("force") ?: false
+            result.success(windows[id]?.destroy(force))
+        }
+        "window.start" -> {
+            val id = call.argument<String>("id") ?: "default"
+            Log.d(TAG, "[service] window.start request_id: $id ${windows[id]}")
+            result.success(windows[id]?.start())
+        }
+        "window.show" -> {
+            val id = call.argument<String>("id")!!
+            val visible = call.argument("visible") ?: true
+            Log.d(TAG, "[service] window.show request_id: $id")
+            result.success(windows[id]?.setVisible(visible))
+        }
+        "window.update" -> {
+            val id = call.argument<String>("id")!!
+            Log.d(TAG, "[service] window.update request_id: $id")
+            val config = FloatWindow.Config.from(call.argument<Map<String, *>>("config")!!)
+            result.success(windows[id]?.update(config))
+        }
+        "window.sync" -> {
+            Log.d(TAG, "[service] fake window.sync")
+            result.success(null)
+        }
+        "data.share" -> {
+            val args = call.arguments as Map<*, *>
+            val targetId = call.argument<String?>("target")
+            Log.d(TAG, "[service] share data from <plugin> with $targetId: $args")
+            if (targetId == null) {
+                Log.d(TAG, "[service] can't share data with self")
+                result.error("no allow", "share data from plugin to plugin", "")
+            } else {
                 val target = windows[targetId]
-                    ?: return result.error("not found", "target window $targetId not exits", "");
-                return target.shareData(args, result=result)
+                    ?: result.error("not found", "target window $targetId not exits", "")
+                    ?: return
+                result.success(target.shareData(args, result = result))
             }
-            else -> {
-                Log.d(TAG, "[service] unknown method ${call.method}")
-                result.notImplemented()
-            }
+        }
+        else -> {
+            Log.d(TAG, "[service] unknown method ${call.method}")
+            result.notImplemented()
         }
     }
 
@@ -412,13 +406,23 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
 
             // TODO: start foreground service if need
 
-            // TODO: waiting for service is running use a better way
-            while (instance==null) {
-                Log.d(TAG, "[service] wait for service created")
-                Thread.sleep(100 * 1)
-                break
+            // Wait for service to be created with timeout
+            val maxWaitTime = 5000L  // 5 seconds timeout
+            val checkInterval = 100L // check every 100ms
+            var waitedTime = 0L
+            
+            while (instance == null && waitedTime < maxWaitTime) {
+                Log.d(TAG, "[service] wait for service created (${waitedTime}ms)")
+                Thread.sleep(checkInterval)
+                waitedTime += checkInterval
             }
-
+            
+            if (instance == null) {
+                Log.e(TAG, "[service] service failed to start within ${maxWaitTime}ms")
+                return false
+            }
+            
+            Log.i(TAG, "[service] service started successfully after ${waitedTime}ms")
             return true
         }
 
