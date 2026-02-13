@@ -14,13 +14,16 @@ A Flutter plugin that makes it easier to create floating/overlay windows for And
 
 ## ✨ Features
 
-- **Pure Flutter**: Write your entire overlay window in pure Flutter.
-- **Simple**: Start your overlay window with as little as 1 line of code.
-- **Auto Resize**: Just focus on your Flutter widget size — the Android view will resize automatically.
-- **Multi-window**: Create multiple overlay windows in one app, with support for parent-child window relationships.
-- **Communicable**: Your main app can communicate with overlay windows, and windows can communicate with each other.
-- **Event Mechanism**: Subscribe to window lifecycle events and actions like drag for more flexible control.
-- *More features are coming...*
+| Feature | Description |
+|---------|-------------|
+| 🎨 **Pure Flutter** | Write your entire overlay window in pure Flutter |
+| 🚀 **Simple** | Start your overlay window with as little as 1 line of code |
+| 📐 **Auto Resize** | Just focus on your Flutter widget size — the Android view resizes automatically |
+| 🪟 **Multi-window** | Create multiple overlay windows with parent-child relationships |
+| 💬 **Communicable** | Main app and overlay windows can communicate seamlessly with each other |
+| 📡 **Event Mechanism** | Subscribe to window lifecycle events and drag actions for flexible control |
+
+*More features are coming...*
 
 ## 📸 Previews
 
