@@ -223,34 +223,131 @@ Each floating window consists of:
 
 ```dart
 FloatwingPlugin()
-  ..checkPermission()       // Check overlay permission
-  ..openPermissionSetting() // Open system settings
-  ..initialize()            // Initialize the plugin
-  ..currentWindow           // Get current window (in overlay)
-  ..windows                 // Map of all windows by ID
+  // Permission
+  ..checkPermission()       // Check overlay permission → Future<bool>
+  ..openPermissionSetting() // Open system settings → Future<bool>
+  
+  // Initialization
+  ..initialize()            // Initialize the plugin → Future<bool>
+  
+  // Service Management
+  ..isServiceRunning()      // Check if background service is running → Future<bool>
+  ..startService()          // Start the background service → Future<bool>
+  ..syncWindows()           // Sync windows from service → Future<bool>
+  ..cleanCache()            // Clean cached data → Future<bool>
+  
+  // Window Access
+  ..currentWindow           // Get current window (in overlay) → Window?
+  ..windows                 // Map of all windows by ID → Map<String, Window>
+  ..isWindow                // Check if running in window engine → bool
 ```
 
 ### WindowConfig
 
+Complete configuration options for overlay windows:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `id` | `String` | `"default"` | Unique window identifier |
+| `entry` | `String` | `"main"` | Entry point function name |
+| `route` | `String?` | `null` | Flutter route for the window |
+| `callback` | `Function?` | `null` | Static function to run (must be static) |
+| `width` | `int?` | `null` | Window width in pixels |
+| `height` | `int?` | `null` | Window height in pixels |
+| `x` | `int?` | `null` | X position on screen |
+| `y` | `int?` | `null` | Y position on screen |
+| `autosize` | `bool?` | `null` | Auto-resize to fit content |
+| `gravity` | `GravityType?` | `null` | Window position alignment |
+| `clickable` | `bool?` | `null` | Allow click-through when `false` |
+| `draggable` | `bool?` | `null` | Enable drag to move |
+| `focusable` | `bool?` | `null` | Allow window to receive focus |
+| `immersion` | `bool?` | `null` | Immersive status bar mode |
+| `visible` | `bool?` | `null` | Initial visibility state |
+
+#### WindowSize Constants
+
+```dart
+WindowSize.MatchParent  // -1: Fill entire screen
+WindowSize.WrapContent  // -2: Fit to content size
+```
+
+#### GravityType Enum
+
+```dart
+GravityType.Center        // Center of screen
+GravityType.CenterTop     // Top center
+GravityType.CenterBottom  // Bottom center
+GravityType.LeftTop       // Top left corner
+GravityType.LeftCenter    // Left center
+GravityType.LeftBottom    // Bottom left corner
+GravityType.RightTop      // Top right corner
+GravityType.RightCenter   // Right center
+GravityType.RightBottom   // Bottom right corner
+```
+
+**Example — Full-screen non-clickable overlay (night mode):**
+
 ```dart
 WindowConfig(
-  id: "unique-id",          // Window identifier
-  route: "/overlay",        // Route-based entry
-  callback: myFunction,     // Function-based entry  
-  entry: "functionName",    // String-based entry
+  id: "night-mode",
+  route: "/night",
+  width: WindowSize.MatchParent,
+  height: WindowSize.MatchParent,
+  clickable: false,  // Touch passes through
+)
+```
+
+**Example — Draggable floating button:**
+
+```dart
+WindowConfig(
+  id: "float-button",
+  route: "/button",
+  draggable: true,
+  gravity: GravityType.RightBottom,
 )
 ```
 
 ### Window
 
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `create({start: bool})` | `Future<Window?>` | Create window, optionally start immediately |
+| `start()` | `Future<bool?>` | Start/show the window |
+| `close({force: bool})` | `Future<bool?>` | Close the window |
+| `show({visible: bool})` | `Future<bool?>` | Show or hide the window |
+| `hide()` | `Future<bool?>` | Hide the window (shortcut for `show(visible: false)`) |
+| `update(WindowConfig)` | `Future<bool>` | Update window configuration |
+| `share(data, {name})` | `Future<dynamic>` | Send data to this window |
+| `on(EventType, handler)` | `Window` | Subscribe to events (chainable) |
+| `onData(handler)` | `Window` | Register data receive handler |
+| `launchMainActivity()` | `Future<bool>` | Open main app from overlay |
+| `createChildWindow(...)` | `Future<Window?>` | Create a child window (from overlay only) |
+
+**Static Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Window.of(context)` | `Window?` | Get window instance from BuildContext |
+| `Window.sync()` | `Future<Map?>` | Sync window state from Android |
+
+### Child Windows
+
+Create nested windows from within an overlay:
+
 ```dart
-window
-  ..create(start: true)     // Create and optionally start
-  ..start()                 // Start the window
-  ..close()                 // Close the window
-  ..share(data)             // Send data to window
-  ..on(event, handler)      // Subscribe to events
-  ..onData(handler)         // Handle incoming data
+// In your overlay window widget
+final parentWindow = Window.of(context);
+
+parentWindow?.createChildWindow(
+  "child-popup",
+  WindowConfig(
+    route: "/popup",
+    width: 200,
+    height: 100,
+  ),
+  start: true,
+);
 ```
 
 <br/>
