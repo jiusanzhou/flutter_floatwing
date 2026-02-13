@@ -120,13 +120,15 @@ void main() {
       final resultMap = config.toMap();
 
       expect(resultMap['pixelRadio'], equals(originalMap['pixelRadio']));
+      final originalScreen = originalMap['screen'] as Map<String, dynamic>;
+      final resultScreen = resultMap['screen'] as Map<dynamic, dynamic>;
       expect(
-        resultMap['screen']['width'],
-        equals(originalMap['screen']['width']),
+        resultScreen['width'],
+        equals(originalScreen['width']),
       );
       expect(
-        resultMap['screen']['height'],
-        equals(originalMap['screen']['height']),
+        resultScreen['height'],
+        equals(originalScreen['height']),
       );
     });
   });

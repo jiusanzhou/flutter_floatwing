@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('WindowConfig', () {
     test('should create with default values', () {
       final config = WindowConfig();
