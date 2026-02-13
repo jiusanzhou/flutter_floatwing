@@ -2,345 +2,339 @@
 
 # flutter_floatwing
 
-[![Version](https://img.shields.io/pub/v/flutter_floatwing.svg)](https://pub.dartlang.org/packages/flutter_floatwing)
-[![pub points](https://badges.bar/flutter_floatwing/pub%20points)](https://pub.dev/packages/flutter_floatwing/score)
-[![popularity](https://badges.bar/flutter_floatwing/popularity)](https://pub.dev/packages/flutter_floatwing/score)
-[![likes](https://badges.bar/flutter_floatwing/likes)](https://pub.dev/packages/flutter_floatwing/score)
-[![License](https://img.shields.io/badge/license-AL2-blue.svg)](https://github.com/jiusanzhou/flutter_floatwing/blob/master/LICENSE)
+[![Pub Version](https://img.shields.io/pub/v/flutter_floatwing?color=blue&logo=dart)](https://pub.dev/packages/flutter_floatwing)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Android-green.svg)](https://flutter.dev)
 
-A Flutter plugin that makes it easier to make floating/overlay windows for Android with pure Flutter. **Android only**
+A Flutter plugin that makes it easier to create floating/overlay windows for Android with pure Flutter. **Android only**
 
 </div>
 
 ---
 
-## Features
+## ✨ Features
 
-- **Pure Flutter**: you can write your whole overlay windows in pure Flutter.
-- **Simple**: at least only 1 line of code to start your overlay window.
-- **Auto Resize**: just care about your Flutter widget size, it will auto resize for Android view.
-- **Multi-window**: support create multiple overlay windows in one App, and window can has child windows.
-- **Communicable**: your main App can talk with windows, and also supported between windows.
-- **Event Mechanism**: fire the events of window lifecyle and other actions like drag, you can controll your window more flexible.
-- *and more features are coming ...*
+| Feature | Description |
+|---------|-------------|
+| 🎨 **Pure Flutter** | Write your entire overlay window in pure Flutter |
+| 🚀 **Simple** | Start your overlay window with as little as 1 line of code |
+| 📐 **Auto Resize** | Just focus on your Flutter widget size — the Android view resizes automatically |
+| 🪟 **Multi-window** | Create multiple overlay windows with parent-child relationships |
+| 💬 **Communicable** | Main app and overlay windows can communicate seamlessly with each other |
+| 📡 **Event Mechanism** | Subscribe to window lifecycle events and drag actions for flexible control |
 
-## Previews
+*More features are coming...*
 
-|Night mode|Simpe example|Assistive touch mock|
-|:-:|:-:|:-:|
-|![](./assets/flutter-floatwing-example-1.gif)|![](./assets/flutter-floatwing-example-2.gif)|![](./assets/flutter-floatwing-example-3.gif)|
+## 📸 Previews
 
-## Installtion
+| Night Mode | Simple Example | Assistive Touch |
+|:----------:|:--------------:|:---------------:|
+| ![Night mode](./assets/flutter-floatwing-example-1.gif) | ![Simple example](./assets/flutter-floatwing-example-2.gif) | ![Assistive touch](./assets/flutter-floatwing-example-3.gif) |
 
-Open the `pubspec.yaml` file located inside the app folder, and add `flutter_floatwing` under `dependencies`.
+## 📦 Installation
+
+Add `flutter_floatwing` to your `pubspec.yaml` file:
+
 ```yaml
 dependencies:
-  flutter_floatwing: <latest_version>
+  flutter_floatwing: ^0.2.1
 ```
 
-The latest version is 
-[![Version](https://img.shields.io/pub/v/flutter_floatwing.svg)](https://pub.dartlang.org/packages/flutter_floatwing)
+Then install it:
+- **Terminal**: Run `flutter pub get`
+- **Android Studio/IntelliJ**: Click "Packages get" in the action ribbon at the top of `pubspec.yaml`
+- **VS Code**: Click "Get Packages" on the right side of the action ribbon at the top of `pubspec.yaml`
 
-Then you should install it,
-- From the terminal: Run `flutter pub get`.
-- From Android Studio/IntelliJ: Click Packages get in the action ribbon at the top of `pubspec.yaml`.
-- From VS Code: Click Get Packages located in right side of the action ribbon at the top of `pubspec.yaml`.
+Or simply run:
 
-
-Or simply add it in your command line:
 ```bash
 flutter pub add flutter_floatwing
 ```
 
-## Quick Started
+## 🚀 Quick Start
 
-We use the android's system alert window to display, so need to add the permission in `AndroidManifest.xml` first:
+Since we use Android's system alert window for display, you need to add the permission to `AndroidManifest.xml` first:
+
 ```xml
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 ```
 
-Add a route for your widget which will be displayed in the overlay window:
+Add a route for the widget that will be displayed in the overlay window:
+
 ```dart
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      initialRoute: "/",
-      routes: {
-          "/": (_) => HomePage(),
-          // add a route as entrypoint for your overlay window.
-          "/my-overlay-window": (_) => MyOverlayWindow(),
-      },
-    );
-  }
+@override
+Widget build(BuildContext context) {
+  return MaterialApp(
+    debugShowCheckedModeBanner: false,
+    initialRoute: "/",
+    routes: {
+      "/": (_) => HomePage(),
+      // Add a route as the entry point for your overlay window
+      "/my-overlay-window": (_) => MyOverlayWindow(),
+    },
+  );
+}
 ```
 
-Before we start the floating window,
-we need to check and request the permission, and initialize the `flutter_floatwing` plugin in `initState` or any button's callback function:
+Before starting the floating window, check and request permission, then initialize the `flutter_floatwing` plugin in `initState` or a button callback:
+
 ```dart
-// check and grant the system alert window permission.
-FloatwingPlugin().checkPermission().then((v) {
-    if (!v) FloatwingPlugin().openPermissionSetting();
+// Check and request the system alert window permission
+FloatwingPlugin().checkPermission().then((granted) {
+  if (!granted) FloatwingPlugin().openPermissionSetting();
 });
 
-// initialize the plugin at first.
+// Initialize the plugin first
 FloatwingPlugin().initialize();
 ```
 
-Next to start create and start your overlay window:
+Now create and start your overlay window:
+
 ```dart
-// define window config and start the window from config.
-WindowConfig(route: "/my-overlay-window") 
-    .to() // create a window object
-    .create(start: true); // create the window and start the overlay window.
+// Define window config and start the window
+WindowConfig(route: "/my-overlay-window")
+    .to()           // Create a window object
+    .create(start: true);  // Create and start the overlay window
 ```
 
 ---
 
-Notes:
+**Notes:**
 
-- `route` is one of 3 ways to define entrypoint for overlay window.
-Please check the [Entrypoint section](#entrypoint) for more information.
-- See [Usage section](#usage) for more functions.
+- `route` is one of 3 ways to define an entry point for the overlay window. See the [Entry Point](#-entry-point) section for more details.
+- See the [Usage](#-usage) section for more features.
 
-## Architecture
+## 🏗️ Architecture
 
-Before we see how `flutter_floatwing` manage windows in detail,
-we need to know some things about the design of the plugin.
-- `id` is the unique identifier for the window, and all operations on the window are based on this `id`, you must provide one before creating.
-- We consider the first engine created by opening the main application as the `main engine` or `plugin engine`. The other engines created by service are `window engine`.
-- Different `engine` are different `threads` and cannot communicate directly.
-- Subscribe events of all windows from `main engine` is allowed, it's also allowed to subscribe events of own and child windows in `window engine`. But we can not subscribe events of sibling or parent windows.
-- `share` data is the only way to communicate between `window engine` or `plugin engine`, there are no restrictions on it, except that the data needs to be serializable. Which means you can share data from anywhere to anywhere.
+Before diving into how `flutter_floatwing` manages windows, here are some key concepts:
 
+- **`id`** is the unique identifier for each window. All operations on a window are based on this `id` — you must provide one before creating a window.
+- The first engine created when opening the main application is called the **main engine** (or **plugin engine**). Engines created by the service are called **window engines**.
+- Different engines run in **different threads** and cannot communicate directly.
+- You can subscribe to events from all windows in the main engine. In a window engine, you can subscribe to events from itself and its child windows, but not from sibling or parent windows.
+- **`share` data** is the only way to communicate between engines. The only restriction is that the data must be serializable — you can share data from anywhere to anywhere.
 
-A floatwing window object contains: a flutter engine which run a widget by `runApp` and a view which add to window manager.
+A floatwing window object consists of a Flutter engine that runs a widget via `runApp` and a view that is added to the Android window manager.
 
 ![floatwing window](./assets/flutter-floatwing-window.png)
 
-The whole view hierarchy like below:
+The overall view hierarchy looks like this:
 
 ![flutter floatwing architecture](./assets/flutter-floatwing-arch.png)
 
-## Usage
+## 📖 Usage
 
-Before we start how to use `flutter_floatwing` in detail,
-let's talk about how the `flutter_floatwing` create a new overlay window:
-- First of all we need to start a service as manager by main app.
-- Then create window request send to the service.
-- In the service, we start the flutter engine with entrypoint.
-- Create a new flutter view and attach it to the flutter engine.
-- Add the view to android window manager.
+Here's how `flutter_floatwing` creates a new overlay window:
+
+1. Start a background service as the window manager from the main app.
+2. Send a create window request to the service.
+3. In the service, start a Flutter engine with the specified entry point.
+4. Create a new Flutter view and attach it to the Flutter engine.
+5. Add the view to the Android window manager.
 
 ### Window & Config
 
-`WindowConfig` contains all configuration for window.
-We can use configuration to create a window like below:
+`WindowConfig` contains all configuration options for a window. You can create a window using configuration like this:
+
 ```dart
 void _createWindow() {
-    var config = WindowConfig();
-    w = Window(config, id="my-window");
-    w.create();
+  var config = WindowConfig();
+  var w = Window(config, id: "my-window");
+  w.create();
 }
 ```
 
-If you have no need to register event or data handler,
-you can just use config to create a window.
+If you don't need to register event or data handlers, you can create a window directly from the config:
+
 ```dart
 void _createWindow() {
-    WindowConfig(id="my-window").create();
+  WindowConfig(id: "my-window").create();
 }
 ```
 
-But as you can see, if you want to provide a id for window,
-must provide in `WindowConfig`.
+Note that if you want to specify a window ID, you must provide it in `WindowConfig`.
 
-If want to register handler, you can use a `to()` function to turn a config to a window at first,
-this is every useful when you want to make code simple.
+If you want to register handlers, use the `to()` function to convert a config to a window first — this is useful for keeping your code clean:
+
 ```dart
 void _createWindow() {
-    WindowConfig(id="my-window").to()
-        .on(EventType.WindowCreated, (w, _) {})
-        .create();
+  WindowConfig(id: "my-window")
+      .to()
+      .on(EventType.WindowCreated, (w, _) {})
+      .create();
 }
 ```
 
-#### Lifecyle of Window
+#### Window Lifecycle
 
 - created
 - started
 - paused
 - resumed
-- destroy
+- destroyed
 
-*TODO*
+### 🎯 Entry Point
 
-### Entrypoint
+The entry point determines where the engine starts execution. We support 3 configuration modes:
 
-Entrypoint is where the engine execute from. We support 3 modes of configuration:
+| Name | Config | How to Use |
+|:-----|:-------|:-----------|
+| `route` | `WindowConfig(route: "/my-overlay")` | Add a route for the overlay window in your main routes, then start with: `WindowConfig(route: "/my-overlay")` |
+| `static function` | `WindowConfig(callback: myOverlayMain)` | Define a static `void Function()` that calls `runApp` to start a widget, then start with: `WindowConfig(callback: myOverlayMain)` |
+| `entry-point` | `WindowConfig(entry: "myOverlayMain")` | Same as static function, but add `@pragma("vm:entry-point")` above the function and use the function name as a string: `WindowConfig(entry: "myOverlayMain")` |
 
-|Name|Config|How to use|
-|:--|:--|:--|
-|`route`|`WindowConfig(route: "/my-overlay")`|- Add a route for overlay window in your main routes<br />- Start window with config: `WindowConfig(route: "/my-overlay")`|
-|`staic function`|`WindowConfig(callback: myOverlayMain)`|- Define a static function `void Function()` which calling `runApp` to start a widget.<br />- Start window with config: `WindowConfig(callback: myOverlayMain)`|
-|`entry-point`|`WindowConfig(entry: "myOverlayMain")`|- First step is same as `staic function`.<br />- Add `@pragma("vm:entry-point")` above the static function.<br />- Start window with config: `WindowConfig(entry: "myOverlayMain")`<br />- *like `static function`, but use string of function name as parameter*|
+#### Example: Using `route`
 
-#### Example for `route`
+1. Add a route for your overlay widget in the main application:
 
-1. Add route for your overlay widget in the main application.
 ```dart
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      initialRoute: "/",
-      routes: {
-          "/": (_) => HomePage(),
-          // add a route as entrypoint for your overlay window.
-          "/my-overlay-window": (_) => MyOverlayWindow(),
-      },
-    );
-  }
-```
-
-2. Start window with `route` as config.
-```dart
-    void _startWindow() {
-        // define window config and start the window from config.
-        WindowConfig(route: "/my-overlay-window") 
-            .to() // create a window object
-            .create(start: true); // create the window and start the overlay window.
-    }
-```
-
-#### Example for `static function`
-
-1. Define a static function which called `runApp`
-```dart
-void myOverlayMain() {
-    runApp(MaterialApp(
-        home: AssistivePannel(),
-    ));
-    // or simply use `floatwing` method to inject `MaterialApp`
-    // runApp(AssistivePannel().floatwing(app: true));
+@override
+Widget build(BuildContext context) {
+  return MaterialApp(
+    debugShowCheckedModeBanner: false,
+    initialRoute: "/",
+    routes: {
+      "/": (_) => HomePage(),
+      // Add a route as the entry point for your overlay window
+      "/my-overlay-window": (_) => MyOverlayWindow(),
+    },
+  );
 }
 ```
 
-2. Start window with `callback` as config.
+2. Start the window with `route`:
+
 ```dart
-    void _startWindow() {
-        // define window config and start the window from config.
-        WindowConfig(callback: myOverlayMain) 
-            .to() // create a window object
-            .create(start: true); // create the window and start the overlay window.
-    }
+void _startWindow() {
+  WindowConfig(route: "/my-overlay-window")
+      .to()
+      .create(start: true);
+}
 ```
 
-#### Example for `entry-point`
+#### Example: Using `static function`
 
-1. Define as static function which called `runApp` and add `prama`
+1. Define a static function that calls `runApp`:
+
+```dart
+void myOverlayMain() {
+  runApp(MaterialApp(
+    home: AssistivePanel(),
+  ));
+  // Or use the floatwing helper to inject MaterialApp
+  // runApp(AssistivePanel().floatwing(app: true));
+}
+```
+
+2. Start the window with `callback`:
+
+```dart
+void _startWindow() {
+  WindowConfig(callback: myOverlayMain)
+      .to()
+      .create(start: true);
+}
+```
+
+#### Example: Using `entry-point`
+
+1. Define a static function that calls `runApp` and add the pragma annotation:
+
 ```dart
 @pragma("vm:entry-point")
 void myOverlayMain() {
-    runApp(MaterialApp(
-        home: AssistivePannel(),
-    ));
-    // or simply use `floatwing` method to inject `MaterialApp`
-    // runApp(AssistivePannel().floatwing(app: true));
+  runApp(MaterialApp(
+    home: AssistivePanel(),
+  ));
+  // Or use the floatwing helper to inject MaterialApp
+  // runApp(AssistivePanel().floatwing(app: true));
 }
 ```
 
-2. Start window with `entry` as config.
+2. Start the window with `entry`:
+
 ```dart
-    void _startWindow() {
-        // define window config and start the window from config.
-        WindowConfig(entry: "myOverlayMain") 
-            .to() // create a window object
-            .create(start: true); // create the window and start the overlay window.
-    }
+void _startWindow() {
+  WindowConfig(entry: "myOverlayMain")
+      .to()
+      .create(start: true);
+}
 ```
 
-### Wrap your widget
+### Wrapping Your Widget
 
-For simple widget, you have no need to do with your widget.
-But if you want more functions and make your code clean,
-we provide a injector for your widget.
+For simple widgets, no special wrapping is needed. But if you want additional functionality and cleaner code, we provide an injector for your widget.
 
-For now there are some functions listed below,
-- Auto resize the window view.
-- Auto sync and ensure the window.
-- Wrap a `MaterialApp`
-- *more features are coming*
+Current features include:
+- Auto-resize the window view
+- Auto-sync and ensure the window
+- Wrap with `MaterialApp`
+- *More features coming...*
 
-Before, we write our overlay main function, like below,
+Previously, you would write your overlay main function like this:
+
 ```dart
 void overlayMain() {
   runApp(MaterialApp(
-    home: MyOverView(),
-  ))
+    home: MyOverlayView(),
+  ));
 }
 ```
 
-Now, we can code simply,
+Now you can simplify it to:
+
 ```dart
 void overlayMain() {
-  runApp(MyOverView().floatwing(app: true)))
+  runApp(MyOverlayView().floatwing(app: true));
 }
 ```
 
-We can wrap to a `Widget` and a `WidgetBuilder`,
-wrap the `WidgetBuilder`, we can access the window instance
-with `Window.of(context)`, while `FloatwingPlugin().currentWindow` 
-is the only to get window instance for wrap `Widget`.
+You can wrap both `Widget` and `WidgetBuilder`. When wrapping a `WidgetBuilder`, you can access the window instance using `Window.of(context)`. For wrapped `Widget`, use `FloatwingPlugin().currentWindow` instead.
 
-If we want to access the window with `Window.of(context)`,
-change the code like below,
+To access the window via `Window.of(context)`, use this pattern:
+
 ```dart
 void overlayMain() {
-  runApp(((_)=>MyOverView()).floatwing(app: true).make()))
+  runApp(((_) => MyOverlayView()).floatwing(app: true).make());
 }
 ```
 
-### Access window in overlay window
+### Accessing Window in Overlay
 
-In your window engine, you can access the window object in 2 ways:
-- Directly access the cache field of plugin: `FloatwingPlugin().currentWindow`.
-- If widget injected by `.floatwing()`, you can take window with `Window.of(context)`.
+In your window engine, you can access the window object in two ways:
 
-`FloatwingPlugin().currentWindow` will return `null` unless initialize has been completed.
+- Directly access the plugin's cached field: `FloatwingPlugin().currentWindow`
+- If the widget is wrapped with `.floatwing()`, use `Window.of(context)`
 
-If you inject `WidgetBuilder` with `.floatwing()`,
-then you can access the current window.
-It will always return non-value, unless you enable debug with `.floatwing(debug: true)`.
+`FloatwingPlugin().currentWindow` returns `null` until initialization is complete.
 
-For example, if we want to get the `id` of current window,
-we can do it like below:
+If you inject a `WidgetBuilder` with `.floatwing()`, you can access the current window. It will always return a non-null value, unless you enable debug mode with `.floatwing(debug: true)`.
+
+For example, to get the `id` of the current window:
+
 ```dart
-/// ...
 import 'package:flutter_floatwing/flutter_floatwing.dart';
 
 class _ExampleViewState extends State<ExampleView> {
-    Window? w;
+  Window? w;
 
-    @override
-    void initState() {
-        super.initState();
-        SchedulerBinding.instance?.addPostFrameCallback((_) {
-            w = Window.of(context);
-            print("my window id is ${w.id}");
-        });
-    }
+  @override
+  void initState() {
+    super.initState();
+    SchedulerBinding.instance?.addPostFrameCallback((_) {
+      w = Window.of(context);
+      print("My window ID is ${w?.id}");
+    });
+  }
 }
 ```
 
-### Subscribe events
+### Subscribing to Events
 
-We can subscribe events from windows, and trigger actions when events fired.
-Events of window will be sent to `main engine`, self `window engine` and the parent `window engine.
-Which means you can subscribe events of window from flutter of main application,
-overlay window and parent overlay window.
+You can subscribe to window events and trigger actions when they fire. Window events are sent to the main engine, the window's own engine, and the parent window engine. This means you can subscribe to window events from the main application, the overlay window itself, or the parent overlay window.
 
-Currently we support events for window lifecycle and drag action.
+Currently supported events include window lifecycle and drag actions:
+
 ```dart
 enum EventType {
   WindowCreated,
@@ -355,111 +349,236 @@ enum EventType {
 }
 ```
 
-*More events type are coming, and contributtions are welcome!*
+*More event types are coming — contributions are welcome!*
 
-For example, we want to do something when the window is started,
-we can code like below:
+For example, to perform an action when a window starts:
+
 ```dart
-  @override
-  void initState() {
-    super.initState();
+@override
+void initState() {
+  super.initState();
 
-    SchedulerBinding.instance?.addPostFrameCallback((_) {
-      w = Window.of(context);
-      w?.on(EventType.WindowStarted, (window, _) {
-          print("$w has been started.");
-      }).on(EventType.WindowDestroy, (window, data) {
-          // data is a boolean value, which means that the window
-          // are destroyed force or not.
-          print("$w has been destroy, force $data");
-      });
+  SchedulerBinding.instance?.addPostFrameCallback((_) {
+    w = Window.of(context);
+    w?.on(EventType.WindowStarted, (window, _) {
+      print("$w has started.");
+    }).on(EventType.WindowDestroy, (window, data) {
+      // data is a boolean indicating whether the window was force-closed
+      print("$w has been destroyed, force: $data");
     });
-  }
+  });
+}
 ```
 
-### Share data with windows
+### Sharing Data with Windows
 
-Sharing data is the only way to communicate with windows.
-We provide a simple way to do this: `window.share(data)`.
+Sharing data is the only way to communicate with windows. Use `window.share(data)` for this purpose.
 
-For example, if you want to share data to overlay window from main application.
+For example, to share data from the main application to an overlay window:
 
-First get the target window in main application,
-usually the created one can be used or you can get one from `windows` cache by `id`,
+First, get the target window in the main application (either the one you created or from the `windows` cache by ID):
+
 ```dart
+Window w;
 
-    Window w;
+void _startWindow() {
+  w = WindowConfig(route: "/my-overlay-window").to();
+}
 
-    void _startWindow() {
-        w = WindowConfig(route: "/my-overlay-window").to();
-    }
-
-    void _shareData(dynamic data) {
-        w.share(data).then((value) {
-            // and window can return value.
-        });
-        // or just take one from cache
-        // FloatwingPlugin().windows["default"]?.share(data);
-    }
+void _shareData(dynamic data) {
+  w.share(data).then((value) {
+    // The window can return a value
+  });
+  // Or get the window from cache
+  // FloatwingPlugin().windows["default"]?.share(data);
+}
 ```
 
-If you want to share data with a name, yon can add the name parameter:
-``w.share(data, name="name-1")`.
+To share data with a specific name, add the name parameter: `w.share(data, name: "name-1")`.
 
-And then you should listen the data in window by register the data handler.
+Then register a data handler in the window to receive the data:
+
 ```dart
-  @override
-  void initState() {
-    super.initState();
+@override
+void initState() {
+  super.initState();
 
-    SchedulerBinding.instance?.addPostFrameCallback((_) {
-      w = Window.of(context);
-      w?.onData((source, name, data) async {
-          print("get $name data from $source: $data");
-      });
+  SchedulerBinding.instance?.addPostFrameCallback((_) {
+    w = Window.of(context);
+    w?.onData((source, name, data) async {
+      print("Received $name data from $source: $data");
     });
-  }
+  });
+}
 ```
 
-The function signature of handler is `Future<dynamic> Function(String? source, String? name, dynamic data)`.
-- `source` is where the data comes from, `null` if from main application, from window will be the `id` of window.
-- `name` is the data name, you can share data for different purposes.
-- `data` is the data that you get.
-- return some value if you want to do.
+The handler function signature is `Future<dynamic> Function(String? source, String? name, dynamic data)`:
 
-There are restrictions for directions of communication, unless you send data to self, which will not be allowed. Which means you can send data as long as you know the id of window. *Currently share to main application is not implemented.*
+- `source`: Where the data comes from. `null` if from the main application; otherwise, the `id` of the source window.
+- `name`: The data name, useful for sharing data for different purposes.
+- `data`: The actual data received.
+- Return a value if you want to respond.
 
-**Note: The data you are sharing should be serializable.**
+You can send data to any window as long as you know its ID — the only restriction is that you cannot send data to yourself. *Note: Sharing data to the main application is not yet implemented.*
 
-## API References
+**Important: The data you share must be serializable.**
 
-### `FloatwingPlugin` instance
+## 📚 API Reference
 
-`FloatwingPlugin` is a singleton class that returns the same instance every time it called `FloatwingPlugin()` factory method.
+### FloatwingPlugin
 
+```dart
+FloatwingPlugin()
+  // Permission
+  ..checkPermission()       // Check overlay permission → Future<bool>
+  ..openPermissionSetting() // Open system settings → Future<bool>
+  
+  // Initialization
+  ..initialize()            // Initialize the plugin → Future<bool>
+  
+  // Service Management
+  ..isServiceRunning()      // Check if background service is running → Future<bool>
+  ..startService()          // Start the background service → Future<bool>
+  ..syncWindows()           // Sync windows from service → Future<bool>
+  ..cleanCache()            // Clean cached data → Future<bool>
+  
+  // Window Access
+  ..currentWindow           // Get current window (in overlay) → Window?
+  ..windows                 // Map of all windows by ID → Map<String, Window>
+  ..isWindow                // Check if running in window engine → bool
+```
 
+`FloatwingPlugin` is a singleton class that returns the same instance every time you call the `FloatwingPlugin()` factory method.
 
-### `WindowConfig` Object
+### WindowConfig
 
-*TODO*
+Complete configuration options for overlay windows:
 
-### `Window` Object
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `id` | `String` | `"default"` | Unique window identifier |
+| `entry` | `String` | `"main"` | Entry point function name |
+| `route` | `String?` | `null` | Flutter route for the window |
+| `callback` | `Function?` | `null` | Static function to run (must be static) |
+| `width` | `int?` | `null` | Window width in pixels |
+| `height` | `int?` | `null` | Window height in pixels |
+| `x` | `int?` | `null` | X position on screen |
+| `y` | `int?` | `null` | Y position on screen |
+| `autosize` | `bool?` | `null` | Auto-resize to fit content |
+| `gravity` | `GravityType?` | `null` | Window position alignment |
+| `clickable` | `bool?` | `null` | Allow click-through when `false` |
+| `draggable` | `bool?` | `null` | Enable drag to move |
+| `focusable` | `bool?` | `null` | Allow window to receive focus |
+| `immersion` | `bool?` | `null` | Immersive status bar mode |
+| `visible` | `bool?` | `null` | Initial visibility state |
 
-*TODO*
+#### WindowSize Constants
 
-### Events
+```dart
+WindowSize.MatchParent  // -1: Fill entire screen
+WindowSize.WrapContent  // -2: Fit to content size
+```
 
-#### Window lifecycle
+#### GravityType Enum
 
-#### Action
+```dart
+GravityType.Center        // Center of screen
+GravityType.CenterTop     // Top center
+GravityType.CenterBottom  // Bottom center
+GravityType.LeftTop       // Top left corner
+GravityType.LeftCenter    // Left center
+GravityType.LeftBottom    // Bottom left corner
+GravityType.RightTop      // Top right corner
+GravityType.RightCenter   // Right center
+GravityType.RightBottom   // Bottom right corner
+```
 
+**Example — Full-screen non-clickable overlay (night mode):**
 
-*More events type are coming, and comtributions are welcome!*
+```dart
+WindowConfig(
+  id: "night-mode",
+  route: "/night",
+  width: WindowSize.MatchParent,
+  height: WindowSize.MatchParent,
+  clickable: false,  // Touch passes through
+)
+```
 
-## Support
+**Example — Draggable floating button:**
 
-Did you find this plugin useful? Please consider to make a donation to help improve it!
+```dart
+WindowConfig(
+  id: "float-button",
+  route: "/button",
+  draggable: true,
+  gravity: GravityType.RightBottom,
+)
+```
 
-## Contributing
+### Window
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `create({start: bool})` | `Future<Window?>` | Create window, optionally start immediately |
+| `start()` | `Future<bool?>` | Start/show the window |
+| `close({force: bool})` | `Future<bool?>` | Close the window |
+| `show({visible: bool})` | `Future<bool?>` | Show or hide the window |
+| `hide()` | `Future<bool?>` | Hide the window (shortcut for `show(visible: false)`) |
+| `update(WindowConfig)` | `Future<bool>` | Update window configuration |
+| `share(data, {name})` | `Future<dynamic>` | Send data to this window |
+| `on(EventType, handler)` | `Window` | Subscribe to events (chainable) |
+| `onData(handler)` | `Window` | Register data receive handler |
+| `launchMainActivity()` | `Future<bool>` | Open main app from overlay |
+| `createChildWindow(...)` | `Future<Window?>` | Create a child window (from overlay only) |
+
+**Static Methods:**
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Window.of(context)` | `Window?` | Get window instance from BuildContext |
+| `Window.sync()` | `Future<Map?>` | Sync window state from Android |
+
+### Child Windows
+
+You can create nested windows from within an overlay:
+
+```dart
+// In your overlay window widget
+final parentWindow = Window.of(context);
+
+parentWindow?.createChildWindow(
+  "child-popup",
+  WindowConfig(
+    route: "/popup",
+    width: 200,
+    height: 100,
+  ),
+  start: true,
+);
+```
+
+## ❤️ Support
+
+Did you find this plugin useful? Please consider making a donation to help improve it!
+
+## 🤝 Contributing
 
 Contributions are always welcome!
+
+- Report bugs or request features via [Issues](https://github.com/jiusanzhou/flutter_floatwing/issues)
+- Submit pull requests
+- Improve documentation
+
+## 📄 License
+
+```
+Apache License 2.0
+Copyright (c) 2022 Zoe
+```
+
+<div align="center">
+
+**[⬆ Back to Top](#flutter_floatwing)**
+
+</div>
