@@ -12,6 +12,7 @@ class AssistiveTouch extends StatefulWidget {
   State<AssistiveTouch> createState() => _AssistiveTouchState();
 }
 
+@pragma("vm:entry-point")
 void _pannelMain() {
   runApp(((_) => AssistivePannel()).floatwing(app: true).make());
 }

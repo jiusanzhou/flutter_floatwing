@@ -18,7 +18,6 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
-import io.flutter.plugin.common.PluginRegistry.Registrar
 import org.json.JSONObject
 import java.lang.Exception
 
@@ -227,12 +226,6 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
   }
 
   companion object {
-    @JvmStatic
-    fun registerWith(registrar: Registrar) {
-      val channel = MethodChannel(registrar.messenger(), CHANNEL_NAME)
-      channel.setMethodCallHandler(FlutterFloatwingPlugin())
-    }
-
     private const val TAG = "FloatwingPlugin"
     private const val CHANNEL_NAME = "im.zoe.labs/flutter_floatwing/method"
     private const val ALERT_WINDOW_PERMISSION = 1248
