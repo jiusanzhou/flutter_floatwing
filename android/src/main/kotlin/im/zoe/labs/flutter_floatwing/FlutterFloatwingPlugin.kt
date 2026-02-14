@@ -18,7 +18,6 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
-import io.flutter.plugin.common.PluginRegistry.Registrar
 import org.json.JSONObject
 import java.lang.Exception
 
@@ -66,14 +65,41 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
   }
 
   private fun saveSystemConfig(data: Map<*, *>?): Boolean {
-    // if not exit should save
-    val old =  mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+    if (data == null) return false
+    
+    val newScreen = data["screen"] as? Map<*, *>
+    val newWidth = (newScreen?.get("width") as? Number)?.toInt() ?: 0
+    val newHeight = (newScreen?.get("height") as? Number)?.toInt() ?: 0
+    val newConfigValid = newWidth > 0 && newHeight > 0
+    
+    val old = mContext.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
       .getString(SYSTEM_CONFIG_KEY, null)
+    
     if (old != null) {
-      Log.d(TAG, "[plugin] system config already exits: $old")
-      return false
+      try {
+        val oldJson = JSONObject(old)
+        val oldScreen = oldJson.optJSONObject("screen")
+        val oldWidth = oldScreen?.optInt("width", 0) ?: 0
+        val oldHeight = oldScreen?.optInt("height", 0) ?: 0
+        val oldConfigValid = oldWidth > 0 && oldHeight > 0
+        
+        if (oldConfigValid) {
+          Log.d(TAG, "[plugin] system config already exists with valid screen: $old")
+          return false
+        }
+        
+        if (!newConfigValid) {
+          Log.d(TAG, "[plugin] both old and new config have invalid screen size, skipping update")
+          return false
+        }
+        
+        Log.d(TAG, "[plugin] updating system config: old has 0x0 screen, new has ${newWidth}x${newHeight}")
+      } catch (e: Exception) {
+        Log.e(TAG, "[plugin] error parsing old system config: ${e.message}")
+      }
     }
 
+    @Suppress("UNCHECKED_CAST")
     FloatwingService.instance?.systemConfig = data as Map<String, Any?>
 
     return try {
@@ -227,12 +253,6 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
   }
 
   companion object {
-    @JvmStatic
-    fun registerWith(registrar: Registrar) {
-      val channel = MethodChannel(registrar.messenger(), CHANNEL_NAME)
-      channel.setMethodCallHandler(FlutterFloatwingPlugin())
-    }
-
     private const val TAG = "FloatwingPlugin"
     private const val CHANNEL_NAME = "im.zoe.labs/flutter_floatwing/method"
     private const val ALERT_WINDOW_PERMISSION = 1248

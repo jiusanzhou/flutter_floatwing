@@ -173,9 +173,11 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
                 result.error("no allow", "share data from plugin to plugin", "")
             } else {
                 val target = windows[targetId]
-                    ?: result.error("not found", "target window $targetId not exits", "")
-                    ?: return
-                result.success(target.shareData(args, result = result))
+                if (target != null) {
+                    target.shareData(args, result = result)
+                } else {
+                    result.error("not found", "target window $targetId not exits", "")
+                }
             }
         }
         else -> {

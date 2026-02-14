@@ -12,6 +12,7 @@ class AssistiveTouch extends StatefulWidget {
   State<AssistiveTouch> createState() => _AssistiveTouchState();
 }
 
+@pragma("vm:entry-point")
 void _pannelMain() {
   runApp(((_) => AssistivePannel()).floatwing(app: true).make());
 }
@@ -71,14 +72,12 @@ class _AssistiveTouchState extends State<AssistiveTouch> {
 
   void _onTap() {
     var w = Window.of(context);
-    // send the postion to pannel window
-    var x = w?.config?.x ?? 0 / (w?.pixelRadio ?? 1);
-    var y = w?.config?.y ?? 0 / (w?.pixelRadio ?? 1);
+    var pixelRatio = w?.pixelRadio ?? 3.0;
+    var x = (w?.config?.x ?? 0) / pixelRatio;
+    var y = (w?.config?.y ?? 0) / pixelRatio;
     pannelWindow?.share([x, y]);
-    // send touchWindow postion to pannel window
     pannelWindow?.start();
     setState(() {
-      // hide button
       expend = true;
     });
   }
@@ -353,7 +352,7 @@ class _AssistivePannelState extends State<AssistivePannel>
     vsync: this,
   );
 
-  Duration _duration = Duration(milliseconds: 200);
+  Duration _duration = Duration(milliseconds: 250);
 
   Window? window;
 
@@ -370,36 +369,30 @@ class _AssistivePannelState extends State<AssistivePannel>
     SchedulerBinding.instance?.addPostFrameCallback((_) {
       window = Window.of(context);
       window?.on(EventType.WindowStarted, (window, data) {
-        // if start just show
         print("pannel just start ...");
         setState(() {
           _show = true;
         });
       }).onData((source, name, data) async {
-        int x = data[0];
-        int y = data[1];
+        double x = (data[0] as num).toDouble();
+        double y = (data[1] as num).toDouble();
         _updatePostion(x, y);
         return;
       });
     });
   }
 
-  double? _left;
-  double? _right;
-  double? _top;
-  bool _isLeft = false;
-  _updatePostion(int x, int y) {
-    _isLeft = x < 50;
-    if (y <= size) {
-      _top = fixed;
-    } else if (y >= screenHeight - size) {
-      _top = screenHeight - size - fixed;
-    } else {
-      _top = y - size / 2;
-    }
+  double _touchX = 0.0;
+  double _touchY = 0.0;
+  double _touchSize = 56.0;
+
+  _updatePostion(double x, double y) {
+    setState(() {
+      _touchX = x;
+      _touchY = y;
+    });
   }
 
-  var fixed = 100.0;
   var factor = 0.8;
 
   double screenWidth = 0.0;
@@ -412,34 +405,50 @@ class _AssistivePannelState extends State<AssistivePannel>
     screenHeight = MediaQuery.of(context).size.height;
     size = screenWidth * factor;
 
+    final touchCenterX = _touchX + _touchSize / 2;
+    final touchCenterY = _touchY + _touchSize / 2;
+
+    final expandedLeft = (screenWidth - size) / 2;
+    final expandedTop =
+        max(20.0, min(touchCenterY - size / 2, screenHeight - size - 20));
+
+    final panelCenterX = expandedLeft + size / 2;
+    final panelCenterY = expandedTop + size / 2;
+
+    final alignX = (touchCenterX - panelCenterX) / (size / 2);
+    final alignY = (touchCenterY - panelCenterY) / (size / 2);
+
     return GestureDetector(
       onTap: _onTap,
       child: Container(
         color: Colors.transparent,
         child: Stack(
           children: [
-            // Container(color: Colors.red),
-            AnimatedPositioned(
-                bottom: _bottom,
-                height: _show ? size : 0,
-                left: _show ? 0 : screenWidth / 2,
-                right: _show ? 0 : screenWidth / 2,
-                curve: Curves.easeIn,
-                duration: _duration,
-                child: FractionallySizedBox(
-                  widthFactor: factor,
-                  child: GestureDetector(
-                      onTap: () => null,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.all(Radius.circular(16)),
-                          color: Color.fromARGB(255, 25, 24, 24),
-                        ),
-                        child: Stack(
-                          children: [],
-                        ),
-                      )),
-                )),
+            Positioned(
+              left: expandedLeft,
+              top: expandedTop,
+              width: size,
+              height: size,
+              child: GestureDetector(
+                onTap: () => null,
+                child: AnimatedScale(
+                  scale: _show ? 1.0 : 0.0,
+                  alignment: Alignment(
+                      alignX.clamp(-1.0, 1.0), alignY.clamp(-1.0, 1.0)),
+                  duration: _duration,
+                  curve: Curves.easeOutCubic,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.all(Radius.circular(16)),
+                      color: Color.fromARGB(255, 25, 24, 24),
+                    ),
+                    child: Stack(
+                      children: [],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -447,8 +456,6 @@ class _AssistivePannelState extends State<AssistivePannel>
   }
 
   bool _show = false;
-
-  double? _bottom = 200;
 
   _onTap() {
     setState(() {
