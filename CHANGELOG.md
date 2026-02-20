@@ -1,3 +1,10 @@
+## 0.3.1
+
+- fix: replace deprecated `window` with `PlatformDispatcher.instance.implicitView`
+- fix: remove unnecessary null assertions in provider
+- fix: suppress unused element warnings for reserved future APIs
+- chore: add analysis_options.yaml
+
 ## 0.3.0
 
 - fix: resolve screen size 0x0 bug causing incorrect window positioning

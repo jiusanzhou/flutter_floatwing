@@ -30,8 +30,14 @@ extension _EventType on EventType {
     EventType.WindowDragEnd: "window.drag_end",
   };
 
+  /// Parse event type from string (reserved for future use)
+  // ignore: unused_element
   static EventType? fromString(String v) {
-    EventType.values.firstWhere((e) => e.name == v);
+    try {
+      return EventType.values.firstWhere((e) => e.name == v);
+    } catch (_) {
+      return null;
+    }
   }
 
   String get name => _names[this]!;

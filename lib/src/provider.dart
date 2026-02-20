@@ -127,20 +127,20 @@ class _MeasuredSized extends StatefulWidget {
 class _MeasuredSizedState extends State<_MeasuredSized> {
   @override
   void initState() {
-    SchedulerBinding.instance!.addPostFrameCallback(postFrameCallback);
+    SchedulerBinding.instance.addPostFrameCallback(postFrameCallback);
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.onChange == null) return widget.child;
-    SchedulerBinding.instance!.addPostFrameCallback(postFrameCallback);
+    SchedulerBinding.instance.addPostFrameCallback(postFrameCallback);
     return UnconstrainedBox(
       child: Container(
         key: widgetKey,
         child: NotificationListener<SizeChangedLayoutNotification>(
           onNotification: (_) {
-            SchedulerBinding.instance?.addPostFrameCallback(postFrameCallback);
+            SchedulerBinding.instance.addPostFrameCallback(postFrameCallback);
             return true;
           },
           child: SizeChangedLayoutNotifier(child: widget.child),
@@ -153,14 +153,16 @@ class _MeasuredSizedState extends State<_MeasuredSized> {
   Size? oldSize;
 
   void postFrameCallback(Duration _) async {
-    final context = widgetKey.currentContext!;
+    final ctx = widgetKey.currentContext;
+    if (ctx == null) return;
 
-    if (widget.delay > 0)
+    if (widget.delay > 0) {
       await Future<void>.delayed(Duration(milliseconds: widget.delay));
+    }
     if (mounted == false) return;
 
-    final newSize = context.size!;
-    if (newSize == Size.zero) return;
+    final newSize = ctx.size;
+    if (newSize == null || newSize == Size.zero) return;
     // if (oldSize == newSize) return;
     oldSize = newSize;
     widget.onChange!(newSize);
@@ -229,7 +231,10 @@ class _DragAnchorState extends State<_DragAnchor> {
 class _ResizeAnchor extends StatefulWidget {
   final Widget child;
 
+  // Reserved for future resize direction support
+  // ignore: unused_element
   final bool horizontal;
+  // ignore: unused_element
   final bool vertical;
 
   const _ResizeAnchor({

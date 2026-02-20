@@ -29,14 +29,15 @@ class SystemConfig {
 
   @override
   String toString() {
-    return "${toMap()} ${screenSize}";
+    return "${toMap()} $screenSize";
   }
 
   factory SystemConfig() {
+    final view = PlatformDispatcher.instance.implicitView;
     return SystemConfig._(
-      pixelRadio: window.devicePixelRatio.toInt(),
-      screenHeight: window.physicalSize.height.toInt(),
-      screenWidth: window.physicalSize.width.toInt(),
+      pixelRadio: view?.devicePixelRatio.toInt() ?? 1,
+      screenHeight: view?.physicalSize.height.toInt() ?? 0,
+      screenWidth: view?.physicalSize.width.toInt() ?? 0,
     );
   }
 

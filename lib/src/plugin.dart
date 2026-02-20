@@ -5,8 +5,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_floatwing/flutter_floatwing.dart';
-import 'package:flutter_floatwing/src/utils.dart';
-import 'package:flutter_floatwing/src/window.dart';
 
 class FloatwingPlugin {
   FloatwingPlugin._() {
@@ -33,8 +31,12 @@ class FloatwingPlugin {
 
   static final MethodChannel _channel = MethodChannel('$channelID/method');
 
+  // Reserved for future background communication
+  // ignore: unused_field
   static final MethodChannel _bgChannel = MethodChannel('$channelID/bg_method');
 
+  // Reserved for future message-based communication
+  // ignore: unused_field
   static final BasicMessageChannel _msgChannel =
       BasicMessageChannel('$channelID/bg_message', JSONMessageCodec());
 
@@ -46,12 +48,12 @@ class FloatwingPlugin {
   /// flag for inited
   bool _inited = false;
 
-  /// permission granted already
-  ///
+  /// permission granted already (updated by initialize)
+  // ignore: unused_field
   bool? _permissionGranted;
 
-  /// service running already
-  ///
+  /// service running already (updated by initialize)
+  // ignore: unused_field
   bool? _serviceRunning;
 
   /// _windows for the main engine to manage the windows started
@@ -103,7 +105,8 @@ class FloatwingPlugin {
 
     final completer = Completer<SystemConfig>();
     void checkMetrics(Duration _) {
-      final size = window.physicalSize;
+      final view = PlatformDispatcher.instance.implicitView;
+      final size = view?.physicalSize ?? Size.zero;
       if (size.width > 0 && size.height > 0) {
         completer.complete(SystemConfig());
       } else {
@@ -123,9 +126,10 @@ class FloatwingPlugin {
     _inited = true;
 
     final systemConfig = await _getValidSystemConfig();
+    final view = PlatformDispatcher.instance.implicitView;
 
     var map = await _channel.invokeMapMethod("plugin.initialize", {
-      "pixelRadio": window.devicePixelRatio,
+      "pixelRadio": view?.devicePixelRatio ?? 1.0,
       "system": systemConfig.toMap(),
     });
 
@@ -134,8 +138,8 @@ class FloatwingPlugin {
     _serviceRunning = map?["service_running"];
     _permissionGranted = map?["permission_grated"];
 
-    var _ws = map?["windows"] as List<dynamic>?;
-    _ws?.forEach((e) {
+    var ws = map?["windows"] as List<dynamic>?;
+    ws?.forEach((e) {
       var w = Window.fromMap(e);
       _windows[w.id] = w;
     });

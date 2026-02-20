@@ -99,8 +99,9 @@ extension GravityTypeConverter on GravityType {
     var dx = o.dx;
     var dy = o.dy;
 
-    var halfWidth = width / 2;
-    var halfHeight = height / 2;
+    // Reserved for future gravity calculation
+    // var halfWidth = width / 2;
+    // var halfHeight = height / 2;
 
     // calcute the x: & 0000 1111 = 15
     // 3 1 5 => -1 0 1 => 0 1 2
