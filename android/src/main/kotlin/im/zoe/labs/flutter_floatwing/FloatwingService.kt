@@ -385,14 +385,45 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             // make sure the service started
             if (!ensureService(context)) return null
 
+            // If instance not ready yet, wait a bit with handler
+            if (instance == null) {
+                Log.i(TAG, "[service] instance null after ensureService, waiting...")
+                // Can't block main thread, return null and let caller retry
+                return null
+            }
+
             // start the window
             return instance?.createWindow(id, config, start, parent)
+        }
+        
+        fun createWindowAsync(context: Context, id: String, config: FloatWindow.Config,
+                              start: Boolean = false, parent: FloatWindow?,
+                              callback: (Map<String, Any?>?) -> Unit) {
+            Log.i(TAG, "[service] create a window async: $id")
+            
+            fun doCreate() {
+                val result = instance?.createWindow(id, config, start, parent)
+                callback(result)
+            }
+            
+            if (instance != null) {
+                doCreate()
+                return
+            }
+            
+            ensureServiceAsync(context) { success ->
+                if (success && instance != null) {
+                    doCreate()
+                } else {
+                    Log.e(TAG, "[service] failed to ensure service for window creation")
+                    callback(null)
+                }
+            }
         }
 
         // ensure the service is started
         private fun ensureService(context: Context): Boolean {
             if (instance != null) return true
-
 
             // let's start the service
 
@@ -405,27 +436,34 @@ class FloatwingService : MethodChannel.MethodCallHandler, BasicMessageChannel.Me
             // start the service
             val intent = Intent(context, FloatwingService::class.java)
             context.startService(intent)
-
-            // TODO: start foreground service if need
-
-            // Wait for service to be created with timeout
-            val maxWaitTime = 5000L  // 5 seconds timeout
-            val checkInterval = 100L // check every 100ms
-            var waitedTime = 0L
             
-            while (instance == null && waitedTime < maxWaitTime) {
-                Log.d(TAG, "[service] wait for service created (${waitedTime}ms)")
-                Thread.sleep(checkInterval)
-                waitedTime += checkInterval
-            }
-            
-            if (instance == null) {
-                Log.e(TAG, "[service] service failed to start within ${maxWaitTime}ms")
-                return false
-            }
-            
-            Log.i(TAG, "[service] service started successfully after ${waitedTime}ms")
+            // Service.onCreate() runs on main thread, so we can't block here
+            // Return true optimistically - the service will be ready when needed
+            // Since we're on main thread, service onCreate will run after this returns
+            Log.i(TAG, "[service] service start requested, returning optimistically")
             return true
+        }
+        
+        // Async version for callbacks
+        fun ensureServiceAsync(context: Context, callback: (Boolean) -> Unit) {
+            if (instance != null) {
+                callback(true)
+                return
+            }
+            
+            if (!FlutterFloatwingPlugin.permissionGiven(context)) {
+                Log.e(TAG, "[service] don't have permission to create overlay window")
+                callback(false)
+                return
+            }
+            
+            val intent = Intent(context, FloatwingService::class.java)
+            context.startService(intent)
+            
+            // Use Handler to check after service has chance to start
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                callback(instance != null)
+            }, 100)
         }
 
         fun onActivityAttached(activity: Activity) {

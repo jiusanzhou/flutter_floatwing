@@ -175,7 +175,12 @@ class FlutterFloatwingPlugin: FlutterPlugin, ActivityAware, MethodCallHandler, P
         val cfg = call.argument<Map<String, *>>("config")!!
         val start = call.argument<Boolean>("start") ?: false
         val config = FloatWindow.Config.from(cfg)
-        return result.success(FloatwingService.createWindow(mContext, id, config, start, null))
+        
+        // Use async version to avoid main thread blocking
+        FloatwingService.createWindowAsync(mContext, id, config, start, null) { windowResult ->
+          result.success(windowResult)
+        }
+        return
       }
       "plugin.is_service_running" -> {
         return result.success(FloatwingService.isRunning(mContext))
